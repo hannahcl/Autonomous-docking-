@@ -87,7 +87,7 @@ classdef Ship
 
       function x_dot = tot_closed_loop_model(obj, t, x)
           u_cbf = obj.cbf_controller(x); 
-          x_dot = obj.closed_loop_model(0, x, u_cbf) 
+          x_dot = obj.closed_loop_model(0, x, u_cbf); 
       end
 
    end
@@ -96,7 +96,6 @@ classdef Ship
 
       function sim(obj)
           
-        %RK simulator
         T = 5; 
         ts = 0.4; 
      
@@ -106,6 +105,7 @@ classdef Ship
         stages = size(b); stages = stages(2); 
         sim_steps = floor(T/ts); 
     
+        %% Run simulation without cbf
         x = zeros(3, sim_steps);  
         x(:, 1) = obj.x0; 
         u = zeros(3, sim_steps);
@@ -114,7 +114,7 @@ classdef Ship
             store = zeros(3,stages + 1); 
             sum_b = zeros(3,1); 
             for s = 1:stages
-                store(:, s+1) = tot_closed_loop_model(obj, 0, x(:, k) + ts*a(s)*store(:, s));  
+                store(:, s+1) = closed_loop_model(obj, 0, x(:, k) + ts*a(s)*store(:, s), [0; 0; 0]);  
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
@@ -123,6 +123,7 @@ classdef Ship
     
         end
 
+        %% Run simulation with cbf
         x_cbf = zeros(3, sim_steps);
         u_cbf = zeros(3, sim_steps);
         x_cbf(:, 1) = obj.x0;
@@ -140,9 +141,10 @@ classdef Ship
     
         end
 
+        %% Plot
+
         t_arr = 0:ts:T; 
-        
-        % Plot 1
+
         subplot(2,2,1);
         plot(t_arr,x(1, :), '-o')  
         hold on
@@ -150,7 +152,7 @@ classdef Ship
         plot(t_arr,x(3, :), '-o')
         hold off
         xlabel('Time')
-        ylabel('State Variables')
+        ylabel('State Variables with nominal ctrl')
         legend('x_1', 'x_2', 'x_3')
 
         subplot(2,2,2);
@@ -160,10 +162,9 @@ classdef Ship
         plot(t_arr,u(3, :), '-o')
         hold off
         xlabel('Time')
-        ylabel('Input')
+        ylabel('Nominal ctrl input')
         legend('u_1', 'u_2', 'u_3')
-        
-        % Plot 2
+       
         subplot(2,2,3);
         plot(t_arr,x_cbf(1, :), '-o')  
         hold on
@@ -171,7 +172,7 @@ classdef Ship
         plot(t_arr,x_cbf(3, :), '-o')
         hold off
         xlabel('Time')
-        ylabel('State Variables')
+        ylabel('State Variables with CBF')
         legend('x_1', 'x_2', 'x_3')
 
         subplot(2,2,4);
@@ -181,11 +182,10 @@ classdef Ship
         plot(t_arr,u_cbf(3, :), '-o')
         hold off
         xlabel('Time')
-        ylabel('Input')
+        ylabel('Ctrl input when using CBF')
         legend('u_cbf_1', 'u_cbf_2', 'u_cbf_3')
-        
-        % Set common title for both plots
-        sgtitle('State Variables over Time')
+
+        sgtitle('Tilte')
        
       end
    end
