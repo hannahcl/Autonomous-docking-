@@ -30,6 +30,7 @@ classdef Ship
         K
 
         alpha
+        H
  
         x0 
    end
@@ -48,7 +49,7 @@ classdef Ship
          %LInear model with normal notation
          obj.A = -inv(obj.M)*obj.N;
          obj.B = eye(3); 
-         obj.C = [0 -1 0];
+         obj.C = eye(3);
 
          %Nominal controler with feedforward
          obj.Q = eye(3); 
@@ -57,18 +58,18 @@ classdef Ship
 
          %CBF controller
          obj.alpha = 1; 
+%          obj.H = [0 0 0; 
+%                 0 -1 0; 
+%                 0 0 0];  
+        obj.H = eye(3); 
 
          %paramters
          obj.x0 = [10; 10; -10];
          
       end
 
-      function u = controller(obj, x)
-        %Linear model. No nominal control objective. Allowalbe set: y < 0. 
-%         CB = obj.C*obj.B; 
-%         nev = (obj.C*obj.A*x + obj.alpha*obj.C*x); 
-%         u = nev/(-CB); 
-          u = zeros(3,1); 
+      function u_cbf = cbf_controller(obj, x)
+        u_cbf = inv(-obj.H*obj.B)*(obj.H*obj.A + obj.alpha*obj.H)*x; 
 
       end
 
@@ -76,8 +77,13 @@ classdef Ship
         x_dot = obj.A*x + obj.B*u;
       end
 
-      function x_dot = closed_loop_model(obj, t, x, u)
-          x_dot = (obj.A-obj.B*obj.K)*x; 
+      function x_dot = closed_loop_model(obj, t, x, u_cbf)
+          x_dot = (obj.A-obj.B*obj.K)*x + obj.B*u_cbf; 
+      end
+
+      function x_dot = tot_closed_loop_model(obj, t, x)
+          u_cbf = obj.cbf_controller(x); 
+          x_dot = obj.closed_loop_model(0, x, u_cbf) 
       end
 
    end
@@ -94,36 +100,88 @@ classdef Ship
         b = [1/6, 1/3, 1/3, 1/6]; 
 
         stages = size(b); stages = stages(2); 
-        sim_steps = round(T/ts)-1; 
+        sim_steps = floor(T/ts); 
     
-        x = zeros(3, sim_steps); 
+        x = zeros(3, sim_steps);  
         x(:, 1) = obj.x0; 
+        u = zeros(3, sim_steps);
     
-        for k = 1:sim_steps
-    
-            K = zeros(3,stages + 1); 
+        for k = 1:sim_steps 
+            store = zeros(3,stages + 1); 
             sum_b = zeros(3,1); 
             for s = 1:stages
-                u = obj.controller(x(:, k)); 
-                K(:, s+1) = obj.closed_loop_model(0, x(:, k) + ts*a(s)*K(:, s), u); 
-                sum_b  = sum_b + b(s)*K(:,s+1); 
+                store(:, s+1) = tot_closed_loop_model(obj, 0, x(:, k) + ts*a(s)*store(:, s));  
+                sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
             x(:, k+1) = x(:, k) + ts*sum_b; 
+            u(:, k+1) = obj.K*x(:, k); 
+    
+        end
+
+        x_cbf = zeros(3, sim_steps);
+        u_cbf = zeros(3, sim_steps);
+        x_cbf(:, 1) = obj.x0;
+
+        for k = 1:sim_steps 
+            store = zeros(3,stages + 1); 
+            sum_b = zeros(3,1); 
+            for s = 1:stages
+                store(:, s+1) = tot_closed_loop_model(obj, 0, x_cbf(:, k) + ts*a(s)*store(:, s));  
+                sum_b  = sum_b + b(s)*store(:,s+1); 
+            end
+    
+            x_cbf(:, k+1) = x_cbf(:, k) + ts*sum_b; 
+            u_cbf(:, k+1) = obj.cbf_controller(x_cbf(:, k)); 
     
         end
 
         t_arr = 0:ts:T; 
-        subplot(1,3,1); 
+        
+        % Plot 1
+        subplot(2,2,1);
         plot(t_arr,x(1, :), '-o')  
         hold on
         plot(t_arr,x(2, :), '-o')
-        hold on
         plot(t_arr,x(3, :), '-o')
         hold off
         xlabel('Time')
         ylabel('State Variables')
         legend('x_1', 'x_2', 'x_3')
+
+        subplot(2,2,2);
+        plot(t_arr,u(1, :), '-o')  
+        hold on
+        plot(t_arr,u(2, :), '-o')
+        plot(t_arr,u(3, :), '-o')
+        hold off
+        xlabel('Time')
+        ylabel('Input')
+        legend('u_1', 'u_2', 'u_3')
+        
+        % Plot 2
+        subplot(2,2,3);
+        plot(t_arr,x_cbf(1, :), '-o')  
+        hold on
+        plot(t_arr,x_cbf(2, :), '-o')
+        plot(t_arr,x_cbf(3, :), '-o')
+        hold off
+        xlabel('Time')
+        ylabel('State Variables')
+        legend('x_1', 'x_2', 'x_3')
+
+        subplot(2,2,4);
+        plot(t_arr,u_cbf(1, :), '-o')  
+        hold on
+        plot(t_arr,u_cbf(2, :), '-o')
+        plot(t_arr,u_cbf(3, :), '-o')
+        hold off
+        xlabel('Time')
+        ylabel('Input')
+        legend('u_cbf_1', 'u_cbf_2', 'u_cbf_3')
+        
+        % Set common title for both plots
+        sgtitle('State Variables over Time')
        
       end
    end
