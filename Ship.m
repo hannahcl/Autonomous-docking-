@@ -32,6 +32,7 @@ classdef Ship
 
         alpha
         H
+        k_h
  
         x0 
         r
@@ -49,7 +50,8 @@ classdef Ship
          obj.N = obj.C_RB + obj.C_A + obj.D;
 
          %LInear model with normal notation
-         obj.A = -inv(obj.M)*obj.N;
+         %obj.A = -inv(obj.M)*obj.N;
+         obj.A = -ones(3,3); 
          obj.B = eye(3); 
          obj.C = eye(3);
 
@@ -60,34 +62,62 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C*inv(obj.B*obj.K-obj.A)*obj.B)); 
 
          %CBF controller
-         obj.alpha = 1; 
-%          obj.H = [0 0 0; 
-%                 0 -1 0; 
-%                 0 0 0];  
+         obj.alpha = 1;   
         obj.H = eye(3); 
+        obj.k_h = [0; 0; 0]; 
 
          %paramters
-         obj.x0 = [3; 3; -3];
-         obj.r = [1; 0; 0]; 
+         obj.x0 = [3; 2; -3];
+         obj.r = [1; 2; 3]; 
          
       end
 
-      function u_cbf = cbf_controller(obj, x)
-        u_cbf = inv(-obj.H*obj.B)*(obj.H*obj.A + obj.alpha*obj.H)*x; 
+      function u = cbf_controller(obj, x)
+
+          u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*x - obj.alpha*(obj.H*x+obj.k_h)); 
+          u = obj.nominell_controller(x);
+
+          u
+          u_lower_bound
+
+%           if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
+%             u = u_lower_bound; 
+%             disp('On boundary of safe set.')
+%           end
+
+          if (u(1) < u_lower_bound(1)) 
+            u(1) = u_lower_bound(1); 
+            disp('On boundary of safe set, for x1.')
+          end
+
+          if (u(2) < u_lower_bound(2)) 
+            u(2) = u_lower_bound(2); 
+            disp('On boundary of safe set.')
+          end
+
+          if (u(3) < u_lower_bound(3)) 
+            u(3) = u_lower_bound(3); 
+            disp('On boundary of safe set.')
+          end
 
       end
 
-      function x_dot = model(obj, t, x, u)
+      function u = nominell_controller(obj, x)
+        u = obj.Kr*obj.r -obj.K*x; 
+      end
+
+      function x_dot = model(obj, x, u)
         x_dot = obj.A*x + obj.B*u;
       end
 
-      function x_dot = closed_loop_model(obj, t, x, u_cbf)
-          x_dot = (obj.A-obj.B*obj.K)*x + obj.Kr*obj.r + obj.B*u_cbf; 
+      function x_dot = closed_loop_model_nomiell(obj, x)
+          u = obj.nominell_controller(x); 
+          x_dot = obj.model(x, u); 
       end
 
-      function x_dot = tot_closed_loop_model(obj, t, x)
-          u_cbf = obj.cbf_controller(x); 
-          x_dot = obj.closed_loop_model(0, x, u_cbf); 
+      function x_dot = closed_loop_model_cbf(obj, x)
+          u = obj.cbf_controller(x); 
+          x_dot = obj.model(x, u); 
       end
 
    end
@@ -96,8 +126,8 @@ classdef Ship
 
       function sim(obj)
           
-        T = 5; 
-        ts = 0.4; 
+        T = 10; 
+        ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
         b = [1/6, 1/3, 1/3, 1/6]; 
@@ -114,12 +144,12 @@ classdef Ship
             store = zeros(3,stages + 1); 
             sum_b = zeros(3,1); 
             for s = 1:stages
-                store(:, s+1) = closed_loop_model(obj, 0, x(:, k) + ts*a(s)*store(:, s), [0; 0; 0]);  
+                store(:, s+1) = obj.closed_loop_model_nomiell(x(:, k) + ts*a(s)*store(:, s));  
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
             x(:, k+1) = x(:, k) + ts*sum_b; 
-            u(:, k+1) = obj.K*x(:, k); 
+            u(:, k+1) = obj.nominell_controller(x(:, k)); 
     
         end
 
@@ -132,7 +162,7 @@ classdef Ship
             store = zeros(3,stages + 1); 
             sum_b = zeros(3,1); 
             for s = 1:stages
-                store(:, s+1) = tot_closed_loop_model(obj, 0, x_cbf(:, k) + ts*a(s)*store(:, s));  
+                store(:, s+1) = obj.closed_loop_model_cbf(x_cbf(:, k) + ts*a(s)*store(:, s));  
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
