@@ -28,11 +28,13 @@ classdef Ship
         Q
         R
         K
+        Kr
 
         alpha
         H
  
         x0 
+        r
    end
    methods(Access = public)
       function obj = Ship()
@@ -55,6 +57,7 @@ classdef Ship
          obj.Q = eye(3); 
          obj.R = eye(3); 
          obj.K = lqr(obj.A, obj.B, obj.Q, obj.R); 
+         obj.Kr = obj.B*(inv(obj.C*inv(obj.B*obj.K-obj.A)*obj.B)); 
 
          %CBF controller
          obj.alpha = 1; 
@@ -64,7 +67,8 @@ classdef Ship
         obj.H = eye(3); 
 
          %paramters
-         obj.x0 = [10; 10; -10];
+         obj.x0 = [3; 3; -3];
+         obj.r = [1; 0; 0]; 
          
       end
 
@@ -78,7 +82,7 @@ classdef Ship
       end
 
       function x_dot = closed_loop_model(obj, t, x, u_cbf)
-          x_dot = (obj.A-obj.B*obj.K)*x + obj.B*u_cbf; 
+          x_dot = (obj.A-obj.B*obj.K)*x + obj.Kr*obj.r + obj.B*u_cbf; 
       end
 
       function x_dot = tot_closed_loop_model(obj, t, x)
