@@ -56,29 +56,28 @@ classdef Ship
          obj.C = eye(3);
 
          %Nominal controler with feedforward
-         obj.Q = eye(3); 
+         obj.Q = 10*eye(3); 
          obj.R = eye(3); 
          obj.K = lqr(obj.A, obj.B, obj.Q, obj.R); 
          obj.Kr = obj.B*(inv(obj.C*inv(obj.B*obj.K-obj.A)*obj.B)); 
 
          %CBF controller
          obj.alpha = 1;   
-        obj.H = eye(3); 
-        obj.k_h = [0; 0; 0]; 
+%         obj.H = [1 0 0]; 
+%         obj.k_h = 0; 
+         obj.H = eye(3); 
+         obj.k_h = -1*[1; 1; 1]; 
 
          %paramters
-         obj.x0 = [3; 2; -3];
-         obj.r = [1; 2; 3]; 
+         obj.x0 = [-3; 2; -3];
+         obj.r = [-1; -1; 0]; 
          
       end
 
-      function u = cbf_controller(obj, x)
+      function u = safe_ctrl_analytical(obj, x)
 
           u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*x - obj.alpha*(obj.H*x+obj.k_h)); 
           u = obj.nominell_controller(x);
-
-          u
-          u_lower_bound
 
 %           if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
 %             u = u_lower_bound; 
@@ -92,15 +91,34 @@ classdef Ship
 
           if (u(2) < u_lower_bound(2)) 
             u(2) = u_lower_bound(2); 
-            disp('On boundary of safe set.')
+            disp('On boundary of safe set, for x2.')
           end
 
           if (u(3) < u_lower_bound(3)) 
             u(3) = u_lower_bound(3); 
-            disp('On boundary of safe set.')
+            disp('On boundary of safe set, for x3.')
           end
 
       end
+
+      function [c, ceq] = check_barrier_func(obj, x, u)
+        
+         K_cbf_left = obj.H*obj.A*x + obj.H*obj.B*u; 
+         K_cbf_right = -obj.alpha*(obj.H*x + obj.k_h); 
+
+         c = K_cbf_right - K_cbf_left; 
+         ceq = 0;   
+      end
+
+     function u_safe = safe_ctrl_fmincon(obj, x)
+        f = @(u) norm(u - obj.nominell_controller(x))^2;
+        nonlcon = @(u) obj.check_barrier_func(x, u);
+
+        u0 = obj.nominell_controller(x);  
+        
+        options = optimoptions(@fmincon,'Display','none');
+        u_safe = fmincon(f, u0, [], [], [], [], [], [], nonlcon, options);
+     end
 
       function u = nominell_controller(obj, x)
         u = obj.Kr*obj.r -obj.K*x; 
@@ -116,7 +134,8 @@ classdef Ship
       end
 
       function x_dot = closed_loop_model_cbf(obj, x)
-          u = obj.cbf_controller(x); 
+          %u = obj.safe_ctrl_analytical(x); 
+          u = obj.safe_ctrl_fmincon(x); 
           x_dot = obj.model(x, u); 
       end
 
@@ -167,7 +186,7 @@ classdef Ship
             end
     
             x_cbf(:, k+1) = x_cbf(:, k) + ts*sum_b; 
-            u_cbf(:, k+1) = obj.cbf_controller(x_cbf(:, k)); 
+            u_cbf(:, k+1) = obj.safe_ctrl_fmincon(x_cbf(:, k)); 
     
         end
 
