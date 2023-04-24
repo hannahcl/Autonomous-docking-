@@ -64,11 +64,11 @@ classdef Ship
 
          %CBF controller
          obj.alpha = 1;   
-         obj.H = eye(3); 
-         obj.k_h = -1*[1; 1; 1]; 
+         obj.H = [0 1 0]; 
+         obj.k_h = 0; 
 
          %paramters
-         obj.nu0 = [3; 1; 3*pi/4];
+         obj.nu0 = [3; 1; pi/4];
          obj.eta0 = [1; 1; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
          
@@ -80,9 +80,25 @@ classdef Ship
         nu_ref = -eta; 
       end
 
+      function [c, ceq] = check_barrier_func(obj, nu, eta)
+        
+         K_cbf_left = nu(1)*sin(eta(3)) + nu(2)*cos(eta(3)) + nu(3) + eta(2); 
+         K_cbf_right = -obj.alpha*(obj.H*eta + obj.k_h); 
+
+         c = K_cbf_right - K_cbf_left; 
+         ceq = 0;   
+      end
+
+
       function nu_ref_safe = safe_ctrl_nu_ref(obj, eta)
-        %Place holder for now. 
-        nu_ref_safe = obj.nominell_ctrl_nu_ref(eta); 
+        nu_ref = obj.nominell_ctrl_nu_ref(eta); 
+
+        f = @(nu_ref_safe) norm(nu_ref_safe - nu_ref)^2;
+        nonlcon = @(nu_ref_safe) obj.check_barrier_func(nu_ref_safe, eta);
+
+        options = optimoptions(@fmincon,'Display','none');
+        nu_ref_safe = fmincon(f, nu_ref, [], [], [], [], [], [], nonlcon, options);
+
       end
 
 
