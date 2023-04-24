@@ -71,8 +71,8 @@ classdef Ship
          obj.k_h = -1*[1; 1; 1]; 
 
          %paramters
-         obj.v0 = [-2; 2; -3];
-         obj.x0 = [0; 1; 1]; 
+         obj.v0 = [0; 0; 0];
+         obj.x0 = [1; 1; 1]; 
          obj.z0 = [obj.x0; obj.v0];
          obj.ref_v= [0; 0; 0]; 
          
