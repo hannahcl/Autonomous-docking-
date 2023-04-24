@@ -37,7 +37,7 @@ classdef Ship
         nu0 
         eta0
         z0
-        ref_nu
+
    end
    methods(Access = public)
       function obj = Ship()
@@ -51,7 +51,7 @@ classdef Ship
          obj.D = -[obj.X_u 0 0; 0 obj.Y_v obj.Y_r; 0 obj.N_v obj.N_r];
          obj.N = obj.C_RB + obj.C_A + obj.D;
 
-         %Linear model with normal notation for v dynamics
+         %Linear model with normal notation for nu dynamics
          obj.A = -inv(obj.M)*obj.N;
          obj.B = eye(3); 
          obj.C = eye(3);
@@ -68,48 +68,26 @@ classdef Ship
          obj.k_h = -1*[1; 1; 1]; 
 
          %paramters
-         obj.nu0 = [0; 0; 0];
+         obj.nu0 = [3; 1; 3*pi/4];
          obj.eta0 = [1; 1; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
-         obj.ref_nu= [0; 0; 0]; 
          
       end
 
       %% Controllers
 
-      function u = safe_ctrl_analytical(obj, nu)
-
-          u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*nu - obj.alpha*(obj.H*nu+obj.k_h)); 
-          u = obj.nominell_controller(nu);
-
-          if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
-            u = u_lower_bound; 
-            disp('On boundary of safe set.')
-          end
-
+      function nu_ref = nominell_ctrl_nu_ref(obj, eta)
+        nu_ref = -eta; 
       end
 
-      function [c, ceq] = check_barrier_func(obj, nu, u)
-        
-         K_cbf_left = obj.H*obj.A*nu + obj.H*obj.B*u; 
-         K_cbf_right = -obj.alpha*(obj.H*nu + obj.k_h); 
-
-         c = K_cbf_right - K_cbf_left; 
-         ceq = 0;   
+      function nu_ref_safe = safe_ctrl_nu_ref(obj, eta)
+        %Place holder for now. 
+        nu_ref_safe = obj.nominell_ctrl_nu_ref(eta); 
       end
 
-     function u_safe = safe_ctrl_fmincon(obj, nu)
-        f = @(u) norm(u - obj.nominell_controller(nu))^2;
-        nonlcon = @(u) obj.check_barrier_func(nu, u);
 
-        u0 = obj.nominell_controller(nu);  
-        
-        options = optimoptions(@fmincon,'Display','none');
-        u_safe = fmincon(f, u0, [], [], [], [], [], [], nonlcon, options);
-     end
-
-      function u = nominell_controller(obj, nu)
-        u = obj.Kr*obj.ref_nu-obj.K*nu; 
+      function tau = ctrl_nu(obj, nu, nu_ref)
+        tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
       %% Models
@@ -118,32 +96,25 @@ classdef Ship
         nu_dot = obj.A*nu + obj.B*u;
       end
 
+      function nu_dot = closed_loop_model_nu_dyn(obj, nu, nu_ref)
+          u = obj.ctrl_nu(nu, nu_ref); 
+          nu_dot = obj.model_nu_dyn(nu, u); 
+      end
+
       function eta_dot = model_eta_dyn(obj, eta, nu)
          R = [cos(eta(3)) -sin(eta(3)) 0; 
              sin(eta(3)) cos(eta(3)) 0; 
              0 0 1]; 
-
          eta_dot = R*nu; 
-      end
-
-      function nu_dot = closed_loop_model_nu_dyn_nomiell(obj, nu)
-          u = obj.nominell_controller(nu); 
-          nu_dot = obj.model_nu_dyn(nu, u); 
-      end
-
-      function nu_dot = closed_loop_model_nu_dyn_cbf(obj, nu)
-          %u = obj.safe_ctrl_analytical(nu); 
-          u = obj.safe_ctrl_fmincon(nu); 
-          nu_dot = obj.model_nu_dyn(nu, u); 
       end
 
       function z_dot = closed_loop_model_z_dyn_nomiell(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
 
-          u = obj.nominell_controller(nu); 
-          nu_dot = obj.model_nu_dyn(nu, u); 
-          eta_dot = obj.model_eta_dyn(eta, nu); 
+          nu_ref = obj.nominell_ctrl_nu_ref(eta); 
+          nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref); 
+          eta_dot = obj.model_eta_dyn(eta, nu);
 
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -152,9 +123,8 @@ classdef Ship
           eta = z(1:3); 
           nu = z(4:6); 
 
-          %u = obj.safe_ctrl_analytical(nu); 
-          u = obj.safe_ctrl_fmincon(nu); 
-          nu_dot = obj.model_nu_dyn(nu, u); 
+          nu_ref_safe = obj.safe_ctrl_nu_ref(eta); 
+          nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref_safe); 
           eta_dot = obj.model_eta_dyn(eta, nu); 
 
           z_dot = [eta_dot; nu_dot]; 
@@ -168,7 +138,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 3; 
+        T = 10; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -191,7 +161,7 @@ classdef Ship
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            u(:, k+1) = obj.nominell_controller(z(4:6, k)); 
+            u(:, k+1) = obj.ctrl_nu(z(4:6, k), zeros(3,1)); %OBS outdated
     
         end
 
@@ -209,7 +179,7 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            u_cbf(:, k+1) = obj.safe_ctrl_fmincon(z_cbf(4:6, k)); 
+            u_cbf(:, k+1) = obj.ctrl_nu(z(4:6, k), zeros(3,1)); %OBS outdated
     
         end
 
@@ -297,3 +267,37 @@ classdef Ship
       end
    end
 end
+
+%% Old code for CBF linear model
+
+
+%       function u = safe_ctrl_analytical(obj, nu)
+% 
+%           u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*nu - obj.alpha*(obj.H*nu+obj.k_h)); 
+%           u = obj.ctrl_nu(nu);
+% 
+%           if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
+%             u = u_lower_bound; 
+%             disp('On boundary of safe set.')
+%           end
+% 
+%       end
+% 
+%       function [c, ceq] = check_barrier_func(obj, nu, u)
+%         
+%          K_cbf_left = obj.H*obj.A*nu + obj.H*obj.B*u; 
+%          K_cbf_right = -obj.alpha*(obj.H*nu + obj.k_h); 
+% 
+%          c = K_cbf_right - K_cbf_left; 
+%          ceq = 0;   
+%       end
+% 
+%      function u_safe = safe_ctrl_fmincon(obj, nu)
+%         f = @(u) norm(u - obj.ctrl_nu(nu))^2;
+%         nonlcon = @(u) obj.check_barrier_func(nu, u);
+% 
+%         u0 = obj.ctrl_nu(nu);  
+%         
+%         options = optimoptions(@fmincon,'Display','none');
+%         u_safe = fmincon(f, u0, [], [], [], [], [], [], nonlcon, options);
+%      end
