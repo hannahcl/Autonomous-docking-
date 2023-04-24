@@ -34,10 +34,10 @@ classdef Ship
         H
         k_h
  
-        v0 
-        x0
+        nu0 
+        eta0
         z0
-        ref_v
+        ref_nu
    end
    methods(Access = public)
       function obj = Ship()
@@ -51,9 +51,8 @@ classdef Ship
          obj.D = -[obj.X_u 0 0; 0 obj.Y_v obj.Y_r; 0 obj.N_v obj.N_r];
          obj.N = obj.C_RB + obj.C_A + obj.D;
 
-         %LInear model with normal notation for v dynamics
-         %obj.A = -inv(obj.M)*obj.N;
-         obj.A = -ones(3,3); 
+         %Linear model with normal notation for v dynamics
+         obj.A = -inv(obj.M)*obj.N;
          obj.B = eye(3); 
          obj.C = eye(3);
 
@@ -65,117 +64,100 @@ classdef Ship
 
          %CBF controller
          obj.alpha = 1;   
-%         obj.H = [1 0 0]; 
-%         obj.k_h = 0; 
          obj.H = eye(3); 
          obj.k_h = -1*[1; 1; 1]; 
 
          %paramters
-         obj.v0 = [0; 0; 0];
-         obj.x0 = [1; 1; 1]; 
-         obj.z0 = [obj.x0; obj.v0];
-         obj.ref_v= [0; 0; 0]; 
+         obj.nu0 = [0; 0; 0];
+         obj.eta0 = [1; 1; 1]; 
+         obj.z0 = [obj.eta0; obj.nu0];
+         obj.ref_nu= [0; 0; 0]; 
          
       end
 
       %% Controllers
 
-      function u = safe_ctrl_analytical(obj, v)
+      function u = safe_ctrl_analytical(obj, nu)
 
-          u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*v - obj.alpha*(obj.H*v+obj.k_h)); 
-          u = obj.nominell_controller(v);
+          u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*nu - obj.alpha*(obj.H*nu+obj.k_h)); 
+          u = obj.nominell_controller(nu);
 
-%           if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
-%             u = u_lower_bound; 
-%             disp('On boundary of safe set.')
-%           end
-
-          if (u(1) < u_lower_bound(1)) 
-            u(1) = u_lower_bound(1); 
-            disp('On boundary of safe set, for v1.')
-          end
-
-          if (u(2) < u_lower_bound(2)) 
-            u(2) = u_lower_bound(2); 
-            disp('On boundary of safe set, for v2.')
-          end
-
-          if (u(3) < u_lower_bound(3)) 
-            u(3) = u_lower_bound(3); 
-            disp('On boundary of safe set, for v3.')
+          if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
+            u = u_lower_bound; 
+            disp('On boundary of safe set.')
           end
 
       end
 
-      function [c, ceq] = check_barrier_func(obj, v, u)
+      function [c, ceq] = check_barrier_func(obj, nu, u)
         
-         K_cbf_left = obj.H*obj.A*v + obj.H*obj.B*u; 
-         K_cbf_right = -obj.alpha*(obj.H*v + obj.k_h); 
+         K_cbf_left = obj.H*obj.A*nu + obj.H*obj.B*u; 
+         K_cbf_right = -obj.alpha*(obj.H*nu + obj.k_h); 
 
          c = K_cbf_right - K_cbf_left; 
          ceq = 0;   
       end
 
-     function u_safe = safe_ctrl_fmincon(obj, v)
-        f = @(u) norm(u - obj.nominell_controller(v))^2;
-        nonlcon = @(u) obj.check_barrier_func(v, u);
+     function u_safe = safe_ctrl_fmincon(obj, nu)
+        f = @(u) norm(u - obj.nominell_controller(nu))^2;
+        nonlcon = @(u) obj.check_barrier_func(nu, u);
 
-        u0 = obj.nominell_controller(v);  
+        u0 = obj.nominell_controller(nu);  
         
         options = optimoptions(@fmincon,'Display','none');
         u_safe = fmincon(f, u0, [], [], [], [], [], [], nonlcon, options);
      end
 
-      function u = nominell_controller(obj, v)
-        u = obj.Kr*obj.ref_v-obj.K*v; 
+      function u = nominell_controller(obj, nu)
+        u = obj.Kr*obj.ref_nu-obj.K*nu; 
       end
 
       %% Models
 
-      function v_dot = model_v_dyn(obj, v, u)
-        v_dot = obj.A*v + obj.B*u;
+      function nu_dot = model_nu_dyn(obj, nu, u)
+        nu_dot = obj.A*nu + obj.B*u;
       end
 
-      function x_dot = model_x_dyn(obj, x, v)
-         R = [cos(x(3)) -sin(x(3)) 0; 
-             sin(x(3)) cos(x(3)) 0; 
+      function eta_dot = model_eta_dyn(obj, eta, nu)
+         R = [cos(eta(3)) -sin(eta(3)) 0; 
+             sin(eta(3)) cos(eta(3)) 0; 
              0 0 1]; 
 
-         x_dot = R*v; 
+         eta_dot = R*nu; 
       end
 
-      function v_dot = closed_loop_model_v_dyn_nomiell(obj, v)
-          u = obj.nominell_controller(v); 
-          v_dot = obj.model_v_dyn(v, u); 
+      function nu_dot = closed_loop_model_nu_dyn_nomiell(obj, nu)
+          u = obj.nominell_controller(nu); 
+          nu_dot = obj.model_nu_dyn(nu, u); 
       end
 
-      function v_dot = closed_loop_model_v_dyn_cbf(obj, v)
-          %u = obj.safe_ctrl_analytical(v); 
-          u = obj.safe_ctrl_fmincon(v); 
-          v_dot = obj.model_v_dyn(v, u); 
+      function nu_dot = closed_loop_model_nu_dyn_cbf(obj, nu)
+          %u = obj.safe_ctrl_analytical(nu); 
+          u = obj.safe_ctrl_fmincon(nu); 
+          nu_dot = obj.model_nu_dyn(nu, u); 
       end
 
       function z_dot = closed_loop_model_z_dyn_nomiell(obj, z)
-          x = z(1:3); 
-          v = z(4:6); 
+          eta = z(1:3); 
+          nu = z(4:6); 
 
-          u = obj.nominell_controller(v); 
-          v_dot = obj.model_v_dyn(v, u); 
-          x_dot = obj.model_x_dyn(x, v); 
+          u = obj.nominell_controller(nu); 
+          nu_dot = obj.model_nu_dyn(nu, u); 
+          eta_dot = obj.model_eta_dyn(eta, nu); 
 
-          z_dot = [x_dot; v_dot]; 
+          z_dot = [eta_dot; nu_dot]; 
       end
 
       function z_dot = closed_loop_model_z_dyn_cbf(obj, z)
-          x = z(1:3); 
-          v = z(4:6); 
+          eta = z(1:3); 
+          nu = z(4:6); 
 
-          %u = obj.safe_ctrl_analytical(v); 
-          u = obj.safe_ctrl_fmincon(v); 
-          v_dot = obj.model_v_dyn(v, u); 
-          x_dot = obj.model_x_dyn(x, v); 
+          %u = obj.safe_ctrl_analytical(nu); 
+          u = obj.safe_ctrl_fmincon(nu); 
+          nu_dot = obj.model_nu_dyn(nu, u); 
+          eta_dot = obj.model_eta_dyn(eta, nu); 
 
-          z_dot = [x_dot; v_dot]; 
+          z_dot = [eta_dot; nu_dot]; 
       end
 
 
@@ -235,10 +217,10 @@ classdef Ship
 
         t_arr = 0:ts:T;
         
-        x = z(1:3, :);
-        x_cbf = z_cbf(1:3, :);
-        v = z(4:6, :);
-        v_cbf = z_cbf(4:6, :);
+        eta = z(1:3, :);
+        eta_cbf = z_cbf(1:3, :);
+        nu = z(4:6, :);
+        nu_cbf = z_cbf(4:6, :);
         
         color_v = [0 0.4470 0.7410];
         color_u = [0.8500 0.3250 0.0980];
@@ -246,13 +228,13 @@ classdef Ship
         color_cbf_traj = [0 0.7290 0.5000]; 
 
         subplot(1,3,1);
-        plot(t_arr,v(1, :),'Color',color_v)  
+        plot(t_arr,nu(1, :),'Color',color_v)  
         hold on 
-        plot(t_arr,v(2, :),'Color',color_u)
-        plot(t_arr,v(3, :),'Color',color_r)
-        plot(t_arr,v_cbf(1, :),'--','Color',color_v)  % stippled
-        plot(t_arr,v_cbf(2, :),'--','Color',color_u)  % stippled
-        plot(t_arr,v_cbf(3, :),'--','Color',color_r)  % stippled
+        plot(t_arr,nu(2, :),'Color',color_u)
+        plot(t_arr,nu(3, :),'Color',color_r)
+        plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
+        plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
+        plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
         hold off 
         xlabel('Time')
         ylabel('State Variables nu = [v, u, r]')
@@ -274,37 +256,37 @@ classdef Ship
         % PLotting trajectories
 
         subplot(1,3,3);
-        plot(x(1, :), x(2, :),'Color',color_v)
+        plot(eta(1, :), eta(2, :),'Color',color_v)
         hold on
-        plot(x_cbf(1, :), x_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
+        plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
         
         % compute arrow lengths and directions
         arrow_frac = 0.2;  % fraction of distance between adjacent points to use for arrow length
-        d = diff(x(1:2,:)).^2;
+        d = diff(eta(1:2,:)).^2;
         dist = sqrt(sum(d,1));
         dist_frac = arrow_frac * dist;
-        angles = x(3,:);
-        angles_cbf = x_cbf(3, :);
+        angles = eta(3,:);
+        angles_cbf = eta_cbf(3, :);
         
         % compute arrow displacements
-        delta_x = dist_frac .* cos(angles);
+        delta_eta = dist_frac .* cos(angles);
         delta_y = dist_frac .* sin(angles);
-        delta_x_cbf = dist_frac .* cos(angles_cbf);
+        delta_eta_cbf = dist_frac .* cos(angles_cbf);
         delta_y_cbf = dist_frac .* sin(angles_cbf);
         
         % draw arrows
-        quiver(x(1,1:end-1), x(2,1:end-1), delta_x(1:end-1), delta_y(1:end-1), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(x_cbf(1,1:end-1), x_cbf(2,1:end-1), delta_x_cbf(1:end-1), delta_y_cbf(1:end-1), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta(1,1:end-1), eta(2,1:end-1), delta_eta(1:end-1), delta_y(1:end-1), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), delta_eta_cbf(1:end-1), delta_y_cbf(1:end-1), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         
         hold off
         xlabel('x')
         ylabel('y')
-        legend('x', 'x_cbf', 'Orientation', 'horizontal')
+        legend('eta', 'eta_cbf', 'Orientation', 'horizontal')
         
         hold on
-        scatter(x(1,1), x(2,1), 'x', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'x_i')
-        scatter(x(1,end), x(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'x_f')
-        scatter(x_cbf(1,end), x_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'x_f_cbf')
+        scatter(eta(1,1), eta(2,1), 'x', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_i')
+        scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f')
+        scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
         hold off
 
 
