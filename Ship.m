@@ -166,7 +166,7 @@ classdef Ship
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
         z(:, 1) = obj.z0; 
-        u = zeros(3, sim_steps);
+        nu_ref = zeros(3, sim_steps); 
     
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -177,14 +177,14 @@ classdef Ship
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            u(:, k+1) = obj.ctrl_nu(z(4:6, k), zeros(3,1)); %OBS outdated
+            nu_ref(:, k+1) = obj.nominell_ctrl_nu_ref(z(1:3, k)); 
     
         end
 
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
         z_cbf(:, 1) = obj.z0;
-        u_cbf = zeros(3, sim_steps);
+        nu_ref_safe = zeros(3, sim_steps);
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -195,7 +195,7 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            u_cbf(:, k+1) = obj.ctrl_nu(z(4:6, k), zeros(3,1)); %OBS outdated
+            nu_ref_safe(:, k+1) = obj.safe_ctrl_nu_ref(z(1:3, k)); 
     
         end
 
@@ -214,6 +214,20 @@ classdef Ship
         color_cbf_traj = [0 0.7290 0.5000]; 
 
         subplot(1,3,1);
+        plot(t_arr,nu_ref(1, :),'Color',color_v)  
+        hold on
+        plot(t_arr,nu_ref(2, :),'Color',color_u)
+        plot(t_arr,nu_ref(3, :),'Color',color_r)
+        plot(t_arr,nu_ref_safe(1, :),'--','Color',color_v)  % stippled
+        plot(t_arr,nu_ref_safe(2, :),'--','Color',color_u)  % stippled
+        plot(t_arr,nu_ref_safe(3, :),'--','Color',color_r)  % stippled
+        hold off 
+        xlabel('Time')
+        ylabel('Ctrl input')
+        legend('u ref', 'v ref', 'r ref', 'u ref safe', 'v ref safe', 'r ref safe')
+        
+        
+        subplot(1,3,2);
         plot(t_arr,nu(1, :),'Color',color_v)  
         hold on 
         plot(t_arr,nu(2, :),'Color',color_u)
@@ -225,57 +239,34 @@ classdef Ship
         xlabel('Time')
         ylabel('State Variables nu = [v, u, r]')
         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
-        
-        subplot(1,3,2);
-        plot(t_arr,u(1, :),'Color',color_v)  
-        hold on
-        plot(t_arr,u(2, :),'Color',color_u)
-        plot(t_arr,u(3, :),'Color',color_r)
-        plot(t_arr,u_cbf(1, :),'--','Color',color_v)  % stippled
-        plot(t_arr,u_cbf(2, :),'--','Color',color_u)  % stippled
-        plot(t_arr,u_cbf(3, :),'--','Color',color_r)  % stippled
-        hold off 
-        xlabel('Time')
-        ylabel('Ctrl input')
-        legend('u_1', 'u_2', 'u_3', 'u_cbf_1', 'u_cbf_2', 'u_cbf_3')
-        
-        % PLotting trajectories
+
+        % Plotting trajectory of eta
 
         subplot(1,3,3);
         plot(eta(1, :), eta(2, :),'Color',color_v)
         hold on
         plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
-        
-        % compute arrow lengths and directions
-        arrow_frac = 0.2;  % fraction of distance between adjacent points to use for arrow length
-        d = diff(eta(1:2,:)).^2;
-        dist = sqrt(sum(d,1));
-        dist_frac = arrow_frac * dist;
-        angles = eta(3,:);
-        angles_cbf = eta_cbf(3, :);
-        
-        % compute arrow displacements
-        delta_eta = dist_frac .* cos(angles);
-        delta_y = dist_frac .* sin(angles);
-        delta_eta_cbf = dist_frac .* cos(angles_cbf);
-        delta_y_cbf = dist_frac .* sin(angles_cbf);
-        
-        % draw arrows
-        quiver(eta(1,1:end-1), eta(2,1:end-1), delta_eta(1:end-1), delta_y(1:end-1), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), delta_eta_cbf(1:end-1), delta_y_cbf(1:end-1), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+
+                
+        % Draw vectors showwing heading
+        arrow_length = 0.2;  
+        psi = eta(3,1:end-1);
+        psi_safe = eta_cbf(3, 1:end-1);
+
+        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi), arrow_length*sin(psi), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe), arrow_length*sin(psi_safe), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         
         hold off
         xlabel('x')
         ylabel('y')
-        legend('eta', 'eta_cbf', 'Orientation', 'horizontal')
+        legend('eta', 'eta_safe', Orientation', 'vertical')
         
+        % Draw starting and end points
         hold on
         scatter(eta(1,1), eta(2,1), 'x', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_i')
         scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f')
         scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
         hold off
-
-
 
         sgtitle('Tilte')
 
@@ -284,36 +275,3 @@ classdef Ship
    end
 end
 
-%% Old code for CBF linear model
-
-
-%       function u = safe_ctrl_analytical(obj, nu)
-% 
-%           u_lower_bound = (obj.H*obj.B)\(-obj.H*obj.A*nu - obj.alpha*(obj.H*nu+obj.k_h)); 
-%           u = obj.ctrl_nu(nu);
-% 
-%           if (u(1) < u_lower_bound(1)) || (u(2) < u_lower_bound(2)) || (u(3) < u_lower_bound(3))
-%             u = u_lower_bound; 
-%             disp('On boundary of safe set.')
-%           end
-% 
-%       end
-% 
-%       function [c, ceq] = check_barrier_func(obj, nu, u)
-%         
-%          K_cbf_left = obj.H*obj.A*nu + obj.H*obj.B*u; 
-%          K_cbf_right = -obj.alpha*(obj.H*nu + obj.k_h); 
-% 
-%          c = K_cbf_right - K_cbf_left; 
-%          ceq = 0;   
-%       end
-% 
-%      function u_safe = safe_ctrl_fmincon(obj, nu)
-%         f = @(u) norm(u - obj.ctrl_nu(nu))^2;
-%         nonlcon = @(u) obj.check_barrier_func(nu, u);
-% 
-%         u0 = obj.ctrl_nu(nu);  
-%         
-%         options = optimoptions(@fmincon,'Display','none');
-%         u_safe = fmincon(f, u0, [], [], [], [], [], [], nonlcon, options);
-%      end
