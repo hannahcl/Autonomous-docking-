@@ -33,6 +33,8 @@ classdef Ship
         alpha
         H
         k_h
+
+        cbf
  
         nu0 
         eta0
@@ -60,7 +62,7 @@ classdef Ship
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.A, obj.B, obj.Q_lqr, obj.R_lqr); 
-         obj.Kr = obj.B*(inv(obj.C*inv(obj.B*obj.K-obj.A)*obj.B)); 
+         obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %CBF controller
          obj.alpha = 1;   
@@ -71,6 +73,8 @@ classdef Ship
          obj.nu0 = [3; 1; pi/4];
          obj.eta0 = [1; 1; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
+
+         obj.cbf = cbf(); 
          
       end
 
@@ -259,7 +263,7 @@ classdef Ship
         hold off
         xlabel('x')
         ylabel('y')
-        legend('eta', 'eta_safe', Orientation', 'vertical')
+        legend('eta', 'eta_safe')
         
         % Draw starting and end points
         hold on
