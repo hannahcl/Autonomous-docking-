@@ -71,7 +71,7 @@ classdef Ship
 
          %paramters
          obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [1; 1; 1]; 
+         obj.eta0 = [4; -5; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          obj.cbf = cbf(); 
@@ -85,11 +85,14 @@ classdef Ship
       end
 
       function [c, ceq] = check_barrier_func(obj, nu, eta)
-        
-         K_cbf_left = nu(1)*sin(eta(3)) + nu(2)*cos(eta(3)) + nu(3) + eta(2); 
-         K_cbf_right = -obj.alpha*(obj.H*eta + obj.k_h); 
 
-         c = K_cbf_right - K_cbf_left; 
+        c = zeros(4, 1); 
+        
+        for i=1:4
+            c(i) = obj.cbf.hi(eta, i); % OBS! must be the lie derivative!
+
+        end
+
          ceq = 0;   
       end
 
@@ -158,7 +161,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 10; 
+        T = 5; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -244,26 +247,30 @@ classdef Ship
         ylabel('State Variables nu = [v, u, r]')
         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
 
-        % Plotting trajectory of eta
+        % --- Plotting trajectory of eta ---
 
+        % Plot x vs y
         subplot(1,3,3);
         plot(eta(1, :), eta(2, :),'Color',color_v)
         hold on
         plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
+        hold off
 
                 
         % Draw vectors showwing heading
+        
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);
         psi_safe = eta_cbf(3, 1:end-1);
 
+        hold on
         quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi), arrow_length*sin(psi), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe), arrow_length*sin(psi_safe), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        
         hold off
         xlabel('x')
         ylabel('y')
         legend('eta', 'eta_safe')
+        
         
         % Draw starting and end points
         hold on
@@ -271,6 +278,21 @@ classdef Ship
         scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f')
         scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
         hold off
+
+        % Draw contour of doc
+        
+        x_plot= -5:0.1:5;
+        f = zeros(1, length(x_plot)); 
+        
+        for i =1:length(x_plot)
+           
+            f(i, :) = obj.cbf.f(x_plot(i)); 
+        end
+        hold on
+        plot(x_plot, f);
+        hold off
+
+        legend('eta', 'eta_safe', 'eta_i', 'eta_f', 'eta_f_cbf', 'doc')
 
         sgtitle('Tilte')
 

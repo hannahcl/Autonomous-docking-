@@ -16,16 +16,31 @@ classdef cbf
 
         function obj = cbf()
 
-            obj.k1 = 1; 
-            obj.k2 = 1; 
-            obj.k3 = 1; 
-            obj.k4 = 1; 
-            obj.k5 = 1; 
-            obj.k6 = 1; 
+            obj.k1 = 3; 
+            obj.k2 = 2; 
+            obj.k3 = 0.9; 
+            obj.k4 = 10e-3; 
+            obj.k5 = 2.5; 
+            obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
           
             obj.theta = obj.compute_theta(); 
             
+        end
+
+        function val_hi = hi(obj, eta, i)
+            ext_pt = obj.compute_extremum(eta, i); 
+            val_hi = obj.f(ext_pt(1)) - ext_pt(2); 
+        end
+
+        function f_val = f(obj, x)
+            temp1 = (x+obj.k3)/obj.k4; 
+            temp2 = (x-obj.k3)/obj.k4;
+
+            temp3 = 1/(1+exp(temp1)); 
+            temp4 = 1/(1+exp(temp2)); 
+            
+            f_val = -obj.k1 - obj.k1*(temp3 - temp4);
         end
 
     end
@@ -42,24 +57,17 @@ classdef cbf
 
         end
 
-        function sig = sig_func(obj, x)
-            sig= 1/(1+exp(-x)); 
+        function sig_val = sig_func(obj, x)
+            sig_val= 1./(1+exp(-x)); 
         end
 
-        function f = f_func(obj, x)
-            f = obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4));
-        end
 
         function extremum = compute_extremum(obj, eta, i)
-            x = eta(1) + k1*cos(eta(3) + theta1);
-            y = eta(2) + k1*sin(eta(3) + theta1);
-            extremum = [x, y]; 
+            x = eta(1) + obj.k1*cos(eta(3) + obj.theta(i));
+            y = eta(2) + obj.k1*sin(eta(3) + obj.theta(i));
+            extremum = [x; y]; 
         end
 
-        function val_hi = h1(obj, eta, i)
-            [x, y] = obj.compute_extremum(eta, i); 
-            val_hi = obj.f(x) - y; 
-        end
 
     end
 end
