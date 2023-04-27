@@ -33,6 +33,8 @@ classdef Ship
         alpha
         H
         k_h
+
+        cbf
  
         nu0 
         eta0
@@ -60,17 +62,14 @@ classdef Ship
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.A, obj.B, obj.Q_lqr, obj.R_lqr); 
-         obj.Kr = obj.B*(inv(obj.C*inv(obj.B*obj.K-obj.A)*obj.B)); 
-
-         %CBF controller
-         obj.alpha = 1;   
-         obj.H = [0 1 0]; 
-         obj.k_h = 0; 
+         obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %paramters
          obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [1; 1; 1]; 
+         obj.eta0 = [4; -3.5; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
+
+         obj.cbf = cbf(); 
          
       end
 
@@ -81,11 +80,14 @@ classdef Ship
       end
 
       function [c, ceq] = check_barrier_func(obj, nu, eta)
-        
-         K_cbf_left = nu(1)*sin(eta(3)) + nu(2)*cos(eta(3)) + nu(3) + eta(2); 
-         K_cbf_right = -obj.alpha*(obj.H*eta + obj.k_h); 
 
-         c = K_cbf_right - K_cbf_left; 
+        c = zeros(4, 1); 
+        
+        for i=1:4
+            c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
+
+        end
+
          ceq = 0;   
       end
 
@@ -107,6 +109,12 @@ classdef Ship
       end
 
       %% Models
+
+      function g_val = g(obj, eta)
+        g_val = [cos(eta(3)) -sin(eta(3)) 0; 
+             sin(eta(3)) cos(eta(3)) 0; 
+             0 0 1] ;     
+      end
 
       function nu_dot = model_nu_dyn(obj, nu, u)
         nu_dot = obj.A*nu + obj.B*u;
@@ -139,6 +147,12 @@ classdef Ship
           eta = z(1:3); 
           nu = z(4:6); 
 
+%           disp('h(eta)')
+%           obj.cbf.h1_fh(eta)
+%           
+%           disp('lie bound')
+%           obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)
+
           nu_ref_safe = obj.safe_ctrl_nu_ref(eta); 
           nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref_safe); 
           eta_dot = obj.model_eta_dyn(eta, nu); 
@@ -154,7 +168,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 10; 
+        T = 5; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -223,7 +237,7 @@ classdef Ship
         plot(t_arr,nu_ref_safe(3, :),'--','Color',color_r)  % stippled
         hold off 
         xlabel('Time')
-        ylabel('Ctrl input')
+        ylabel('Nu reference')
         legend('u ref', 'v ref', 'r ref', 'u ref safe', 'v ref safe', 'r ref safe')
         
         
@@ -237,29 +251,33 @@ classdef Ship
         plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
         hold off 
         xlabel('Time')
-        ylabel('State Variables nu = [v, u, r]')
+        ylabel('Nu')
         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
 
-        % Plotting trajectory of eta
+        % --- Plotting trajectory of eta ---
 
+        % Plot x vs y
         subplot(1,3,3);
         plot(eta(1, :), eta(2, :),'Color',color_v)
         hold on
         plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
+        hold off
 
                 
         % Draw vectors showwing heading
+        
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);
         psi_safe = eta_cbf(3, 1:end-1);
 
+        hold on
         quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi), arrow_length*sin(psi), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe), arrow_length*sin(psi_safe), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        
         hold off
         xlabel('x')
         ylabel('y')
-        legend('eta', 'eta_safe', Orientation', 'vertical')
+        legend('eta', 'eta_safe')
+        
         
         % Draw starting and end points
         hold on
@@ -267,6 +285,21 @@ classdef Ship
         scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f')
         scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
         hold off
+
+        % Draw contour of doc
+        
+        x_plot= -5:0.1:5;
+        f = zeros(1, length(x_plot)); 
+        
+        for i =1:length(x_plot)
+           
+            f(i, :) = obj.cbf.f(x_plot(i)); 
+        end
+        hold on
+        plot(x_plot, f);
+        hold off
+
+        legend('eta', 'eta_safe', 'eta_i', 'eta_f', 'eta_f_cbf', 'doc')
 
         sgtitle('Tilte')
 
