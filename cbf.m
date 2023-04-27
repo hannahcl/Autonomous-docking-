@@ -50,8 +50,6 @@ classdef cbf
         end
 
         function fhs = create_func_handles(obj) 
-            %does not have to be publisc. will find function handle only
-            %once. 
 
             syms x
             eta = sym('eta', [3 1]); 
@@ -69,7 +67,7 @@ classdef cbf
 %             extremum1_x(eta) = eta(1) + obj.d*cos(eta(3) + theta1); 
 %             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
 
-            h1(eta) = f(eta(1)) - eta(2); %OBSOBSOBS
+            h1(eta) = f(eta(1)) - eta(2); 
             grad_h1(eta) = simplify(gradient(h1, eta)'); 
   
             h1_fh = matlabFunction(h1, 'Vars', {eta}); 
