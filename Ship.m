@@ -65,13 +65,13 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %CBF controller
-         obj.alpha = 1;   
-         obj.H = [0 1 0]; 
-         obj.k_h = 0; 
+%          obj.alpha = 1;   
+%          obj.H = [0 1 0]; 
+%          obj.k_h = 0; 
 
          %paramters
          obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [4; -5; 1]; 
+         obj.eta0 = [5; -3.5; 1]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          obj.cbf = cbf(); 
@@ -89,7 +89,7 @@ classdef Ship
         c = zeros(4, 1); 
         
         for i=1:4
-            c(i) = obj.cbf.hi(eta, i); % OBS! must be the lie derivative!
+            c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
 
         end
 
@@ -114,6 +114,12 @@ classdef Ship
       end
 
       %% Models
+
+      function g_val = g(obj, eta)
+        g_val = [cos(eta(3)) -sin(eta(3)) 0; 
+             sin(eta(3)) cos(eta(3)) 0; 
+             0 0 1] ;     
+      end
 
       function nu_dot = model_nu_dyn(obj, nu, u)
         nu_dot = obj.A*nu + obj.B*u;
@@ -145,6 +151,12 @@ classdef Ship
       function z_dot = closed_loop_model_z_dyn_cbf(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
+
+          disp('h(eta)')
+          obj.cbf.h1_fh(eta)
+          
+          disp('lie bound')
+          obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)
 
           nu_ref_safe = obj.safe_ctrl_nu_ref(eta); 
           nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref_safe); 

@@ -7,10 +7,17 @@ classdef cbf
         k5
         k6
         d
+        alpha
 
         theta
 
+        h1_fh
+        grad_h1_fh
+
+
     end
+
+
 
     methods(Access = public)
 
@@ -18,15 +25,49 @@ classdef cbf
 
             obj.k1 = 3; 
             obj.k2 = 2; 
-            obj.k3 = 0.9; 
+            obj.k3 = obj.k2 - 0.1; 
             obj.k4 = 10e-3; 
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
+            obj.alpha = 1; 
           
             obj.theta = obj.compute_theta(); 
+
+            fhs = obj.create_func_handles(); 
+            obj.h1_fh = fhs{1};  
+            obj.grad_h1_fh = fhs{2}; 
             
         end
+
+        function fhs = create_func_handles(obj) 
+            %does not have to be publisc. will find function handle only
+            %once. 
+
+            syms x
+            eta = sym('eta', [3 1]); 
+
+            sig = @(x) 1/(1+exp(-x)); 
+            f= @(x) obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
+             
+           % theta1 = atan((obj.k5/2)/(obj.k6/2)); 
+%             theta4 = theta1 + pi/2;
+%             theta3 = theta1 + pi; 
+%             theta2 = theta1 - pi/2;
+
+            %create function handle in for loop here afterwards
+            
+%             extremum1_x(eta) = eta(1) + obj.d*cos(eta(3) + theta1); 
+%             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
+            h1(eta) = simplify( f(eta(1)) - eta(2)); 
+            grad_h1(eta) = simplify(gradient(h1, eta)'); 
+  
+            h1_fh = matlabFunction(h1, 'Vars', {eta}); 
+            grad_h1_fh = matlabFunction(grad_h1, 'Vars', {eta}); 
+
+            fhs = {h1_fh; grad_h1_fh}; 
+
+    end
 
         function val_hi = hi(obj, eta, i)
             ext_pt = obj.compute_extremum(eta, i); 
@@ -56,6 +97,8 @@ classdef cbf
             theta = [theta1; theta2; theta3; theta4]; 
 
         end
+
+
 
         function sig_val = sig_func(obj, x)
             sig_val= 1./(1+exp(-x)); 
