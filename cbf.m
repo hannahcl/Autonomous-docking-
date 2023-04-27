@@ -57,7 +57,7 @@ classdef cbf
             eta = sym('eta', [3 1]); 
 
             sig = @(x) 1/(1+exp(-x)); 
-            f= @(x) obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
+            f= @(x) -obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
              
            % theta1 = atan((obj.k5/2)/(obj.k6/2)); 
 %             theta4 = theta1 + pi/2;
@@ -68,7 +68,8 @@ classdef cbf
             
 %             extremum1_x(eta) = eta(1) + obj.d*cos(eta(3) + theta1); 
 %             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
-            h1(eta) = f(eta(1)) - eta(2) -6; 
+
+            h1(eta) = f(eta(1)) - eta(2); %OBSOBSOBS
             grad_h1(eta) = simplify(gradient(h1, eta)'); 
   
             h1_fh = matlabFunction(h1, 'Vars', {eta}); 
