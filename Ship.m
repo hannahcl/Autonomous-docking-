@@ -174,7 +174,7 @@ classdef Ship
       function sim(obj)
           
         T = 5; 
-        ts = 0.2; 
+        ts = 0.1; 
      
         a = [0, 0.5, 0.5, 1]; 
         b = [1/6, 1/3, 1/3, 1/6]; 

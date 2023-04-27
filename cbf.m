@@ -1,5 +1,14 @@
 classdef cbf
     properties
+
+        %k1 = dedpth of the doc
+        %k2 = width of teh doc
+        %k3 = tollerance for difference between sigmoid func and acctual doc
+        %k4 = sparpnes of sigmoid
+        
+        %k5 = length of boat
+        %k6 = width of boat
+
         k1
         k2
         k3
@@ -24,13 +33,13 @@ classdef cbf
         function obj = cbf()
 
             obj.k1 = 3; 
-            obj.k2 = 2; 
+            obj.k2 = 1; 
             obj.k3 = obj.k2 - 0.1; 
             obj.k4 = 10e-3; 
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
-            obj.alpha = 1; 
+            obj.alpha = 10; 
           
             obj.theta = obj.compute_theta(); 
 
@@ -59,7 +68,7 @@ classdef cbf
             
 %             extremum1_x(eta) = eta(1) + obj.d*cos(eta(3) + theta1); 
 %             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
-            h1(eta) = simplify( f(eta(1)) - eta(2)); 
+            h1(eta) = f(eta(1)) - eta(2) -6; 
             grad_h1(eta) = simplify(gradient(h1, eta)'); 
   
             h1_fh = matlabFunction(h1, 'Vars', {eta}); 
