@@ -39,7 +39,7 @@ classdef cbf
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
-            obj.alpha = 10; 
+            obj.alpha = 1; 
           
             obj.theta = obj.compute_theta(); 
 
@@ -68,7 +68,7 @@ classdef cbf
 %             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
 
             h1(eta) = f(eta(1)) - eta(2); 
-            grad_h1(eta) = simplify(gradient(h1, eta)')
+            grad_h1(eta) = simplify(gradient(h1, eta)'); 
   
             h1_fh = matlabFunction(h1, 'Vars', {eta}); 
             grad_h1_fh = matlabFunction(grad_h1, 'Vars', {eta}); 

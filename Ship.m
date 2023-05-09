@@ -34,8 +34,8 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [-5; -7; pi/4]; 
+         obj.nu0 = [2; 2; pi/4];
+         obj.eta0 = [-4; -3.5; pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -91,13 +91,7 @@ classdef Ship
       function z_dot = closed_loop_model_z_cbf(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
-
-%           disp('h(eta)')
-%           obj.cbf.h1_fh(eta)
-%           
-%           disp('lie bound')
-%           obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)
-
+          
           nu_ref_safe = obj.safe_ctrl_eta(eta); 
           nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref_safe); 
           eta_dot = obj.dyn.model_eta(eta, nu); 
@@ -171,6 +165,7 @@ classdef Ship
         color_cbf_traj = [0 0.7290 0.5000]; 
 
         subplot(1,3,1);
+        % --- plot nu ref
         plot(t_arr,nu_ref(1, :),'Color',color_v)  
         hold on
         plot(t_arr,nu_ref(2, :),'Color',color_u)
@@ -185,17 +180,36 @@ classdef Ship
         
         
         subplot(1,3,2);
-        plot(t_arr,nu(1, :),'Color',color_v)  
-        hold on 
-        plot(t_arr,nu(2, :),'Color',color_u)
-        plot(t_arr,nu(3, :),'Color',color_r)
-        plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
-        plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
-        plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
-        hold off 
+        % --- plot nu 
+%         plot(t_arr,nu(1, :),'Color',color_v)  
+%         hold on 
+%         plot(t_arr,nu(2, :),'Color',color_u)
+%         plot(t_arr,nu(3, :),'Color',color_r)
+%         plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
+%         plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
+%         plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
+%         hold off 
+%         xlabel('Time')
+%         ylabel('Nu')
+%         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
+
+
+        % --- plot h and gradient of h
+        h_arr = zeros(size(t_arr));
+        deta_h_arr = zeros(size(t_arr));
+
+        for i = 1:length(t_arr)
+            h_arr(i) = obj.cbf.h1_fh(eta_cbf(:, i));
+            deta_h_arr(i) = obj.cbf.grad_h1_fh(eta_cbf(:, i)) * obj.dyn.compute_R(eta_cbf(:, 1)) * nu_cbf(:, i);
+        end
+
+        plot(t_arr, h_arr, '-o')
+        hold on
+        plot(t_arr, deta_h_arr, '-o')
+        hold off
         xlabel('Time')
-        ylabel('Nu')
-        legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
+        ylabel('')
+        legend('h', 'd_eta h')
 
         % --- Plotting trajectory of eta ---
 
@@ -207,7 +221,7 @@ classdef Ship
         hold off
 
                 
-        % Draw vectors showwing heading
+        % Draw vectors showing heading
         
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);
