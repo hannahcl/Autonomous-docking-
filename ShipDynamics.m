@@ -76,6 +76,8 @@ classdef ShipDynamics
              0 obj.B_22v 0; 
              0 0 obj.B_66v]; 
 
+         % disturbance 
+      
          obj.tau_wave = zeros(3,1); 
          obj.tau_wind = zeros(3,1); 
 
@@ -85,6 +87,7 @@ classdef ShipDynamics
              0 0 0;
              0 0 obj.m*obj.U;
              0 0 obj.m*obj.x_g*obj.U];
+
          obj.C_A_lin = [
              0 0 0;
              0 0 -obj.X_u_dot*obj.U;
@@ -117,9 +120,8 @@ classdef ShipDynamics
       end
 
       function nu_dot = linear_model_nu(obj, nu, tau) 
-        nu_dot = obj.M\(tau + obj.tau_wave + obj.tau_wind - obj.N_lin*nu);
+        nu_dot = -obj.M\obj.N_lin*nu + tau+ obj.tau_wave + obj.tau_wind;
       end
-
 
    end
 
@@ -136,8 +138,6 @@ classdef ShipDynamics
    end
 
    methods(Access = private)
-
-
 
 
       function C_RB = compute_C_RB(obj, nu)
@@ -172,7 +172,6 @@ classdef ShipDynamics
             + obj.D ...
             + obj.compute_Dn(nu); 
       end
-
 
    end
 

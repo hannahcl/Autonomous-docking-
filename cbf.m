@@ -68,7 +68,7 @@ classdef cbf
 %             extremum1_y(eta) = eta(2) + obj.d*sin(eta(3) + theta1); 
 
             h1(eta) = f(eta(1)) - eta(2); 
-            grad_h1(eta) = simplify(gradient(h1, eta)'); 
+            grad_h1(eta) = simplify(gradient(h1, eta)')
   
             h1_fh = matlabFunction(h1, 'Vars', {eta}); 
             grad_h1_fh = matlabFunction(grad_h1, 'Vars', {eta}); 

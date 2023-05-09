@@ -35,7 +35,7 @@ classdef Ship
 
          %initial values 
          obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [4; -3.5; 1]; 
+         obj.eta0 = [-5; -7; pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -44,53 +44,44 @@ classdef Ship
 
       %% Controllers
 
-      function nu_ref = nominell_ctrl_nu_ref(obj, eta)
+      function nu_ref = nominell_ctrl_eta(obj, eta)
         nu_ref = -eta; 
       end
 
-      function [c, ceq] = check_barrier_func(obj, nu, eta)
-
+      function [c, ceq] = compute_constraints(obj, nu, eta)
         c = zeros(4, 1); 
-
-        
         for i=1:4
             c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
-
         end
-
          ceq = 0;   
       end
 
-
-      function nu_ref_safe = safe_ctrl_nu_ref(obj, eta)
-        nu_ref = obj.nominell_ctrl_nu_ref(eta); 
+      function nu_ref_safe = safe_ctrl_eta(obj, eta)
+        nu_ref = obj.nominell_ctrl_eta(eta); 
 
         f = @(nu_ref_safe) norm(nu_ref_safe - nu_ref)^2;
-        nonlcon = @(nu_ref_safe) obj.check_barrier_func(nu_ref_safe, eta);
+        nonlcon = @(nu_ref_safe) obj.compute_constraints(nu_ref_safe, eta);
 
         options = optimoptions(@fmincon,'Display','none');
         nu_ref_safe = fmincon(f, nu_ref, [], [], [], [], [], [], nonlcon, options);
-
       end
-
 
       function tau = ctrl_nu(obj, nu, nu_ref)
         tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
-      %% Models
+      %% Closed loop models
 
       function nu_dot = closed_loop_linear_model_nu(obj, nu, nu_ref)
-          u = obj.ctrl_nu(nu, nu_ref); 
-          nu_dot = obj.dyn.linear_model_nu(nu, u); 
+          tau = obj.ctrl_nu(nu, nu_ref); 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
       end
-
 
       function z_dot = closed_loop_model_z_nomiell(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
 
-          nu_ref = obj.nominell_ctrl_nu_ref(eta); 
+          nu_ref = obj.nominell_ctrl_eta(eta); 
           nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref); 
           eta_dot = obj.dyn.model_eta(eta, nu);
 
@@ -107,14 +98,12 @@ classdef Ship
 %           disp('lie bound')
 %           obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)
 
-          nu_ref_safe = obj.safe_ctrl_nu_ref(eta); 
+          nu_ref_safe = obj.safe_ctrl_eta(eta); 
           nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref_safe); 
           eta_dot = obj.dyn.model_eta(eta, nu); 
 
           z_dot = [eta_dot; nu_dot]; 
       end
-
-
 
    end
 
@@ -145,7 +134,7 @@ classdef Ship
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            nu_ref(:, k+1) = obj.nominell_ctrl_nu_ref(z(1:3, k)); 
+            nu_ref(:, k+1) = obj.nominell_ctrl_eta(z(1:3, k)); 
     
         end
 
@@ -163,7 +152,7 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            nu_ref_safe(:, k+1) = obj.safe_ctrl_nu_ref(z(1:3, k)); 
+            nu_ref_safe(:, k+1) = obj.safe_ctrl_eta(z(1:3, k)); 
     
         end
 
