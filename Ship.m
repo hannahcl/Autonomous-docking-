@@ -34,7 +34,7 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [2; 2; pi/4];
+         obj.nu0 = [5; 5; pi/4];
          obj.eta0 = [-4; -3.5; pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
@@ -64,6 +64,9 @@ classdef Ship
 
         options = optimoptions(@fmincon,'Display','none');
         nu_ref_safe = fmincon(f, nu_ref, [], [], [], [], [], [], nonlcon, options);
+
+%         disp('test')
+%         obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu_ref_safe + obj.cbf.alpha*obj.cbf.h1_fh(eta)
       end
 
       function tau = ctrl_nu(obj, nu, nu_ref)
@@ -94,7 +97,7 @@ classdef Ship
           
           nu_ref_safe = obj.safe_ctrl_eta(eta); 
           nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref_safe); 
-          eta_dot = obj.dyn.model_eta(eta, nu); 
+          eta_dot = obj.dyn.model_eta(eta, nu_ref_safe); %OBS, here reference is passed directly 
 
           z_dot = [eta_dot; nu_dot]; 
       end
