@@ -44,11 +44,16 @@ classdef Ship
 
       %% Controllers
 
-      function nu_ref = nominell_ctrl_eta(obj, eta)
+      function nu_ref = ctrl_eta(obj, eta)
         nu_ref = -eta; 
       end
 
-      function [c, ceq] = compute_constraints(obj, nu, eta)
+      function tau = ctrl_nu_nominell(obj, nu, nu_ref)
+        tau = obj.Kr*nu_ref-obj.K*nu; 
+      end
+
+      function [c, ceq] = compute_constraints(obj,tau, nu, eta)
+        %OBS - outdated
         c = zeros(4, 1); 
         for i=1:4
             c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
@@ -56,36 +61,27 @@ classdef Ship
          ceq = 0;   
       end
 
-      function nu_ref_safe = safe_ctrl_eta(obj, eta)
-        nu_ref = obj.nominell_ctrl_eta(eta); 
+      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta)
 
-        f = @(nu_ref_safe) norm(nu_ref_safe - nu_ref)^2;
-        nonlcon = @(nu_ref_safe) obj.compute_constraints(nu_ref_safe, eta);
+        f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
+        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
 
         options = optimoptions(@fmincon,'Display','none');
-        nu_ref_safe = fmincon(f, nu_ref, [], [], [], [], [], [], nonlcon, options);
+        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options);
 
-      end
-
-      function tau = ctrl_nu(obj, nu, nu_ref)
-        tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
       %% Closed loop models
-
-      function nu_dot = closed_loop_linear_model_nu(obj, nu, nu_ref)
-          tau = obj.ctrl_nu(nu, nu_ref); 
-          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
-      end
 
       function z_dot = closed_loop_model_z_nomiell(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
 
-          nu_ref = obj.nominell_ctrl_eta(eta); 
-          nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref); 
-          eta_dot = obj.dyn.model_eta(eta, nu);
+          nu_ref = obj.ctrl_eta(eta); 
+          tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau); %OBS change to nonlienar model
+          eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
 
@@ -93,10 +89,12 @@ classdef Ship
           eta = z(1:3); 
           nu = z(4:6); 
           
-          nu_ref_safe = obj.safe_ctrl_eta(eta); 
-          nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref_safe); 
-          eta_dot = obj.dyn.model_eta(eta, nu);
+          nu_ref = obj.ctrl_eta(eta); 
+          tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
+          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); %OBS change to nonlienar model
+          eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
 
@@ -118,7 +116,7 @@ classdef Ship
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
         z(:, 1) = obj.z0; 
-        nu_ref = zeros(3, sim_steps); 
+        %tau = zeros(3, sim_steps); 
     
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -129,14 +127,14 @@ classdef Ship
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            nu_ref(:, k+1) = obj.nominell_ctrl_eta(z(1:3, k)); 
+            %tau(:, k+1) = obj.ctrl_nu_nominell(z(1:3, k)); 
     
         end
 
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
         z_cbf(:, 1) = obj.z0;
-        nu_ref_safe = zeros(3, sim_steps);
+        %tau_safe = zeros(3, sim_steps);
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -147,7 +145,7 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            nu_ref_safe(:, k+1) = obj.safe_ctrl_eta(z(1:3, k)); 
+            %tau_safe(:, k+1) = obj.ctrl_nu_safe(z(1:3, k)); 
     
         end
 
@@ -165,22 +163,23 @@ classdef Ship
         color_r = [0.9290 0.6940 0.1250];
         color_cbf_traj = [0 0.7290 0.5000]; 
 
-        subplot(1,3,1);
-        % --- plot nu ref
-        plot(t_arr,nu_ref(1, :),'Color',color_v)  
-        hold on
-        plot(t_arr,nu_ref(2, :),'Color',color_u)
-        plot(t_arr,nu_ref(3, :),'Color',color_r)
-        plot(t_arr,nu_ref_safe(1, :),'--','Color',color_v)  % stippled
-        plot(t_arr,nu_ref_safe(2, :),'--','Color',color_u)  % stippled
-        plot(t_arr,nu_ref_safe(3, :),'--','Color',color_r)  % stippled
-        hold off 
-        xlabel('Time')
-        ylabel('Nu reference')
-        legend('u ref', 'v ref', 'r ref', 'u ref safe', 'v ref safe', 'r ref safe')
+        %subplot(1,2,1);
+        % --- plot tau
+
+%         plot(t_arr,tau(1, :),'Color',color_v)  
+%         hold on
+%         plot(t_arr,tau(2, :),'Color',color_u)
+%         plot(t_arr,tau(3, :),'Color',color_r)
+%         plot(t_arr,tau_safe(1, :),'--','Color',color_v)  % stippled
+%         plot(t_arr,tau_safe(2, :),'--','Color',color_u)  % stippled
+%         plot(t_arr,tau_safe(3, :),'--','Color',color_r)  % stippled
+%         hold off 
+%         xlabel('Time')
+%         ylabel('Tau')
+%         legend('tau 1', 'tau 2', 'tau 3', 'tau 1 safe', 'tau 2 safe', 'tau 3 safe')
         
         
-        subplot(1,3,2);
+        subplot(1,2,1);
         % --- plot nu 
 
 %         plot(t_arr,nu(1, :),'Color',color_v)  
@@ -217,7 +216,7 @@ classdef Ship
         % --- Plotting trajectory of eta ---
 
         % Plot x vs y
-        subplot(1,3,3);
+        subplot(1,2,2);
         plot(eta(1, :), eta(2, :),'Color',color_v)
         hold on
         plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
