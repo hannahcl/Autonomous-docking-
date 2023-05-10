@@ -1,40 +1,17 @@
 classdef Ship
 
    properties
-        m = 5; 
-        Iz = 1; 
-        U = 10; 
-        x_g = 1;
-        X_u_dot = 1; 
-        Y_u_dot = 1; 
-        X_u = 1;
-        Y_v = 1; 
-        Y_r = 1; 
-        N_v = 1; 
-        N_r = 1; 
-        
-        M_RB
-        MA
-        M 
-        C_RB
-        C_A
-        D
-        N
 
         B
         C
         A
-
         Q_lqr
         R_lqr
         K
         Kr
 
-        alpha
-        H
-        k_h
-
         cbf
+        dyn
  
         nu0 
         eta0
@@ -44,123 +21,84 @@ classdef Ship
    methods(Access = public)
       function obj = Ship()
 
-         %Matricies defining the linear model
-         obj.M_RB = [obj.m 0 0; 0 obj.m obj.m*obj.x_g; 0 obj.m*obj.x_g obj.Iz];
-         obj.MA = [obj.X_u_dot 0 0; 0 obj.Y_v obj.Y_r; 0 obj.N_v obj.N_r];
-         obj.M = obj.M_RB + obj.MA; 
-         obj.C_RB = [0 0 0; 0 0 obj.m*obj.U; 0 0 obj.m*obj.x_g*obj.U];
-         obj.C_A = [0 0 0; 0 0 -obj.X_u_dot*obj.U; 0 (obj.X_u_dot-obj.Y_u_dot)*obj.U -obj.Y_u_dot*obj.U];
-         obj.D = -[obj.X_u 0 0; 0 obj.Y_v obj.Y_r; 0 obj.N_v obj.N_r];
-         obj.N = obj.C_RB + obj.C_A + obj.D;
-
-         %Linear model with normal notation for nu dynamics
-         obj.A = -inv(obj.M)*obj.N;
-         obj.B = eye(3); 
-         obj.C = eye(3);
+         obj.cbf = cbf(); 
+         obj.dyn = ShipDynamics(); 
 
          %Nominal controler with feedforward
+         obj.A = -obj.dyn.M\obj.dyn.N_lin;
+         obj.B = eye(3); 
+         obj.C = eye(3); 
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.A, obj.B, obj.Q_lqr, obj.R_lqr); 
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
-         %paramters
-         obj.nu0 = [3; 1; pi/4];
-         obj.eta0 = [4; -3.5; 1]; 
+         %initial values 
+         obj.nu0 = [1; 1; pi/4];
+         obj.eta0 = [-4; -3.5; pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
-         obj.cbf = cbf(); 
+         
          
       end
 
       %% Controllers
 
-      function nu_ref = nominell_ctrl_nu_ref(obj, eta)
+      function nu_ref = nominell_ctrl_eta(obj, eta)
         nu_ref = -eta; 
       end
 
-      function [c, ceq] = check_barrier_func(obj, nu, eta)
-
+      function [c, ceq] = compute_constraints(obj, nu, eta)
         c = zeros(4, 1); 
-        
         for i=1:4
-            c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
-
+            c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
         end
-
          ceq = 0;   
       end
 
-
-      function nu_ref_safe = safe_ctrl_nu_ref(obj, eta)
-        nu_ref = obj.nominell_ctrl_nu_ref(eta); 
+      function nu_ref_safe = safe_ctrl_eta(obj, eta)
+        nu_ref = obj.nominell_ctrl_eta(eta); 
 
         f = @(nu_ref_safe) norm(nu_ref_safe - nu_ref)^2;
-        nonlcon = @(nu_ref_safe) obj.check_barrier_func(nu_ref_safe, eta);
+        nonlcon = @(nu_ref_safe) obj.compute_constraints(nu_ref_safe, eta);
 
         options = optimoptions(@fmincon,'Display','none');
         nu_ref_safe = fmincon(f, nu_ref, [], [], [], [], [], [], nonlcon, options);
 
       end
 
-
       function tau = ctrl_nu(obj, nu, nu_ref)
         tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
-      %% Models
+      %% Closed loop models
 
-      function g_val = g(obj, eta)
-        g_val = [cos(eta(3)) -sin(eta(3)) 0; 
-             sin(eta(3)) cos(eta(3)) 0; 
-             0 0 1] ;     
+      function nu_dot = closed_loop_linear_model_nu(obj, nu, nu_ref)
+          tau = obj.ctrl_nu(nu, nu_ref); 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
       end
 
-      function nu_dot = model_nu_dyn(obj, nu, u)
-        nu_dot = obj.A*nu + obj.B*u;
-      end
-
-      function nu_dot = closed_loop_model_nu_dyn(obj, nu, nu_ref)
-          u = obj.ctrl_nu(nu, nu_ref); 
-          nu_dot = obj.model_nu_dyn(nu, u); 
-      end
-
-      function eta_dot = model_eta_dyn(obj, eta, nu)
-         R = [cos(eta(3)) -sin(eta(3)) 0; 
-             sin(eta(3)) cos(eta(3)) 0; 
-             0 0 1]; 
-         eta_dot = R*nu; 
-      end
-
-      function z_dot = closed_loop_model_z_dyn_nomiell(obj, z)
+      function z_dot = closed_loop_model_z_nomiell(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
 
-          nu_ref = obj.nominell_ctrl_nu_ref(eta); 
-          nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref); 
-          eta_dot = obj.model_eta_dyn(eta, nu);
+          nu_ref = obj.nominell_ctrl_eta(eta); 
+          nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref); 
+          eta_dot = obj.dyn.model_eta(eta, nu);
 
           z_dot = [eta_dot; nu_dot]; 
       end
 
-      function z_dot = closed_loop_model_z_dyn_cbf(obj, z)
+      function z_dot = closed_loop_model_z_cbf(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
-
-%           disp('h(eta)')
-%           obj.cbf.h1_fh(eta)
-%           
-%           disp('lie bound')
-%           obj.cbf.grad_h1_fh(eta)*obj.g(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)
-
-          nu_ref_safe = obj.safe_ctrl_nu_ref(eta); 
-          nu_dot = obj.closed_loop_model_nu_dyn(nu, nu_ref_safe); 
-          eta_dot = obj.model_eta_dyn(eta, nu); 
+          
+          nu_ref_safe = obj.safe_ctrl_eta(eta); 
+          nu_dot = obj.closed_loop_linear_model_nu(nu, nu_ref_safe); 
+          eta_dot = obj.dyn.model_eta(eta, nu);
 
           z_dot = [eta_dot; nu_dot]; 
       end
-
-
 
    end
 
@@ -186,12 +124,12 @@ classdef Ship
             store = zeros(6,stages + 1); 
             sum_b = zeros(6,1); 
             for s = 1:stages
-                store(:, s+1) = obj.closed_loop_model_z_dyn_nomiell(z(:, k) + ts*a(s)*store(:, s));  
+                store(:, s+1) = obj.closed_loop_model_z_nomiell(z(:, k) + ts*a(s)*store(:, s));  
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            nu_ref(:, k+1) = obj.nominell_ctrl_nu_ref(z(1:3, k)); 
+            nu_ref(:, k+1) = obj.nominell_ctrl_eta(z(1:3, k)); 
     
         end
 
@@ -204,12 +142,12 @@ classdef Ship
             store = zeros(6,stages + 1); 
             sum_b = zeros(6,1); 
             for s = 1:stages
-                store(:, s+1) = obj.closed_loop_model_z_dyn_cbf(z_cbf(:, k) + ts*a(s)*store(:, s));  
+                store(:, s+1) = obj.closed_loop_model_z_cbf(z_cbf(:, k) + ts*a(s)*store(:, s));  
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            nu_ref_safe(:, k+1) = obj.safe_ctrl_nu_ref(z(1:3, k)); 
+            nu_ref_safe(:, k+1) = obj.safe_ctrl_eta(z(1:3, k)); 
     
         end
 
@@ -228,6 +166,7 @@ classdef Ship
         color_cbf_traj = [0 0.7290 0.5000]; 
 
         subplot(1,3,1);
+        % --- plot nu ref
         plot(t_arr,nu_ref(1, :),'Color',color_v)  
         hold on
         plot(t_arr,nu_ref(2, :),'Color',color_u)
@@ -242,17 +181,38 @@ classdef Ship
         
         
         subplot(1,3,2);
-        plot(t_arr,nu(1, :),'Color',color_v)  
-        hold on 
-        plot(t_arr,nu(2, :),'Color',color_u)
-        plot(t_arr,nu(3, :),'Color',color_r)
-        plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
-        plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
-        plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
-        hold off 
+        % --- plot nu 
+
+%         plot(t_arr,nu(1, :),'Color',color_v)  
+%         hold on 
+%         plot(t_arr,nu(2, :),'Color',color_u)
+%         plot(t_arr,nu(3, :),'Color',color_r)
+%         plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
+%         plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
+%         plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
+%         hold off 
+%         xlabel('Time')
+%         ylabel('Nu')
+%         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
+
+
+        % --- plot h and gradient of h
+
+        h_arr = zeros(size(t_arr));
+        deta_h_arr = zeros(size(t_arr));
+
+        for i = 1:length(t_arr)
+            h_arr(i) = obj.cbf.h1_fh(eta_cbf(:, i));
+            deta_h_arr(i) = obj.cbf.grad_h1_fh(eta_cbf(:, i)) * obj.dyn.compute_R(eta_cbf(:, 1)) * nu_cbf(:, i);
+        end
+
+        plot(t_arr, h_arr, '-o')
+        hold on
+        plot(t_arr, deta_h_arr, '-o')
+        hold off
         xlabel('Time')
-        ylabel('Nu')
-        legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
+        ylabel('')
+        legend('h', 'd_{eta} h')
 
         % --- Plotting trajectory of eta ---
 
@@ -264,7 +224,7 @@ classdef Ship
         hold off
 
                 
-        % Draw vectors showwing heading
+        % Draw vectors showing heading
         
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);

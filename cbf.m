@@ -39,7 +39,7 @@ classdef cbf
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
-            obj.alpha = 10; 
+            obj.alpha = 1; 
           
             obj.theta = obj.compute_theta(); 
 
