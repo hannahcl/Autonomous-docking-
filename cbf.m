@@ -23,6 +23,16 @@ classdef cbf
         h1_fh
         grad_h1_fh
 
+        dyn
+        A 
+
+        h_fh  
+        Lf_h_fh  
+        Lf2_h_fh  
+        LfLg_h_fh 
+
+        K_alpha 
+
 
     end
 
@@ -43,10 +53,60 @@ classdef cbf
           
             obj.theta = obj.compute_theta(); 
 
-            fhs = obj.create_func_handles(); 
-            obj.h1_fh = fhs{1};  
-            obj.grad_h1_fh = fhs{2}; 
-            
+            obj.dyn = ShipDynamics(); 
+            obj.A = -obj.dyn.M\obj.dyn.N_lin; 
+
+            fhs = obj.create_fhs_for_2order(); 
+            obj.h_fh = fhs{1}; 
+            obj.Lf_h_fh = fhs{2}; 
+            obj.Lf2_h_fh = fhs{3}; 
+            obj.LfLg_h_fh = fhs{4}; 
+
+            obj.K_alpha = [1 2]; 
+
+%             fhs = obj.create_func_handles(); 
+%             obj.h1_fh = fhs{1};  
+%             obj.grad_h1_fh = fhs{2}; 
+   
+        end
+
+        function fhs = create_fhs_for_2order(obj)
+
+            z = sym('z', [6 1]);
+
+            %define h
+            %h(z) = (z(1))^2 + (-2 -z(2))^2 - 4;
+            h(z) = [-1 0 0 0 0 0]*z - 1; 
+
+            %define f
+
+            f(z) = [
+                cos(z(3))*z(4) - sin(z(3))*z(5);
+                sin(z(3))*z(5) + cos(z(3))*z(5); 
+                z(6); 
+                obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
+                obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
+                obj.A(3,1)*z(4) + obj.A(3,2)*z(5) + obj.A(3,3)*z(6)
+            ]; 
+
+            %define g
+            g= zeros(6,3); 
+            g(4:6, 1:3) = eye(3); 
+
+            %compute lie derivatives
+            Lf_h = simplify((gradient(h,z).')*f); 
+            grad_Lf_h = gradient(Lf_h, z).'; 
+
+            Lf2_h = simplify(grad_Lf_h*f); 
+            LfLg_h = simplify(grad_Lf_h*g); 
+
+            h = matlabFunction(h, 'Vars', {z}); 
+            Lf_h = matlabFunction(Lf_h, 'Vars', {z}); 
+            Lf2_h = matlabFunction(Lf2_h, 'Vars', {z}); 
+            LfLg_h = matlabFunction(LfLg_h, 'Vars', {z}); 
+
+
+            fhs = {h; Lf_h; Lf2_h; LfLg_h};
         end
 
         function fhs = create_func_handles(obj) 

@@ -34,8 +34,8 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [1; 1; pi/4];
-         obj.eta0 = [-4; -3.5; pi/4]; 
+         obj.nu0 = [-1; 1; 0];
+         obj.eta0 = [-1.2; -4.2; 0]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -53,10 +53,11 @@ classdef Ship
       end
 
       function [c, ceq] = compute_constraints(obj,tau, nu, eta)
-        %OBS - outdated
+        z = [eta; nu]; 
         c = zeros(4, 1); 
         for i=1:4
-            c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
+           % c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
+            c(i) = -(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]); 
         end
          ceq = 0;   
       end
@@ -104,7 +105,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 5; 
+        T = 10; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -201,8 +202,9 @@ classdef Ship
         deta_h_arr = zeros(size(t_arr));
 
         for i = 1:length(t_arr)
-            h_arr(i) = obj.cbf.h1_fh(eta_cbf(:, i));
-            deta_h_arr(i) = obj.cbf.grad_h1_fh(eta_cbf(:, i)) * obj.dyn.compute_R(eta_cbf(:, 1)) * nu_cbf(:, i);
+            %-(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]);
+            h_arr(i) = obj.cbf.h_fh([eta_cbf(:, i); nu_cbf(:, i)]);
+            deta_h_arr(i) = 0;
         end
 
         plot(t_arr, h_arr, '-o')
