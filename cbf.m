@@ -2,7 +2,7 @@ classdef cbf
     properties
 
         %k1 = dedpth of the doc
-        %k2 = width of teh doc
+        %k2 = width of the doc
         %k3 = tollerance for difference between sigmoid func and acctual doc
         %k4 = sparpnes of sigmoid
         
@@ -29,7 +29,7 @@ classdef cbf
         h_fh  
         Lf_h_fh  
         Lf2_h_fh  
-        LfLg_h_fh 
+        LgLf_h_fh 
 
         K_alpha 
 
@@ -45,7 +45,7 @@ classdef cbf
             obj.k1 = 3; 
             obj.k2 = 1; 
             obj.k3 = obj.k2 - 0.1; 
-            obj.k4 = 10e-3; 
+            obj.k4 = 10e-1; 
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
@@ -60,7 +60,7 @@ classdef cbf
             obj.h_fh = fhs{1}; 
             obj.Lf_h_fh = fhs{2}; 
             obj.Lf2_h_fh = fhs{3}; 
-            obj.LfLg_h_fh = fhs{4}; 
+            obj.LgLf_h_fh = fhs{4}; 
 
             obj.K_alpha = [1 2]; 
 
@@ -75,14 +75,20 @@ classdef cbf
             z = sym('z', [6 1]);
 
             %define h
-            %h(z) = (z(1))^2 + (-2 -z(2))^2 - 4;
-            h(z) = [-1 0 0 0 0 0]*z - 1; 
+            syms x
+            sig = @(x) 1/(1+exp(-x)); 
+            doc= @(x) -obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
+             
+            h(z) = doc(z(1)) - z(2); 
+
+            %h(z) = (z(1)^2 + (-1 -z(2))^2 - 1); 
+
 
             %define f
 
             f(z) = [
                 cos(z(3))*z(4) - sin(z(3))*z(5);
-                sin(z(3))*z(5) + cos(z(3))*z(5); 
+                sin(z(3))*z(4) + cos(z(3))*z(5); 
                 z(6); 
                 obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
                 obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
@@ -98,15 +104,14 @@ classdef cbf
             grad_Lf_h = gradient(Lf_h, z).'; 
 
             Lf2_h = simplify(grad_Lf_h*f); 
-            LfLg_h = simplify(grad_Lf_h*g); 
+            LgLf_h = simplify(grad_Lf_h*g); 
 
             h = matlabFunction(h, 'Vars', {z}); 
             Lf_h = matlabFunction(Lf_h, 'Vars', {z}); 
             Lf2_h = matlabFunction(Lf2_h, 'Vars', {z}); 
-            LfLg_h = matlabFunction(LfLg_h, 'Vars', {z}); 
+            LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
 
-
-            fhs = {h; Lf_h; Lf2_h; LfLg_h};
+            fhs = {h; Lf_h; Lf2_h; LgLf_h};
         end
 
         function fhs = create_func_handles(obj) 

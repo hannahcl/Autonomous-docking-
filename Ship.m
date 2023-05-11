@@ -34,8 +34,8 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [-1; 1; 0];
-         obj.eta0 = [-1.2; -4.2; 0]; 
+         obj.nu0 = [-1; 0.5; 1];
+         obj.eta0 = [-0; -3; 0]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -57,7 +57,7 @@ classdef Ship
         c = zeros(4, 1); 
         for i=1:4
            % c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
-            c(i) = -(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]); 
+            c(i) = -(obj.cbf.Lf2_h_fh(z) + obj.cbf.LgLf_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]); 
         end
          ceq = 0;   
       end
@@ -92,11 +92,21 @@ classdef Ship
           
           nu_ref = obj.ctrl_eta(eta); 
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
+
+          disp('new time step')
+          eta
+          nu
+          tau_nominell
+
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
           nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); %OBS change to nonlienar model
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
+
+
+
+
       end
 
    end
@@ -106,7 +116,7 @@ classdef Ship
       function sim(obj)
           
         T = 10; 
-        ts = 0.2; 
+        ts = 0.05; 
      
         a = [0, 0.5, 0.5, 1]; 
         b = [1/6, 1/3, 1/3, 1/6]; 
@@ -135,7 +145,9 @@ classdef Ship
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
         z_cbf(:, 1) = obj.z0;
-        %tau_safe = zeros(3, sim_steps);
+        h = zeros(1,sim_steps);
+        d_h = zeros(1,sim_steps);
+%         dd_h = zeros(1,sim_steps);
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -146,13 +158,23 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            %tau_safe(:, k+1) = obj.ctrl_nu_safe(z(1:3, k)); 
-    
+            h(k) = obj.cbf.h_fh(z_cbf(:, k)); 
+            d_h(k+1) = obj.cbf.Lf_h_fh(z_cbf(:, k)); 
+
+%             eta = z_cbf(1:3, k); 
+%             nu = z_cbf(4:6, k);
+%             tau_nom = obj.ctrl_nu_nominell(nu, nu_ref); 
+%             tau_safe = ctrl_nu_safe(tau_nom, nu, eta); 
+%             dd_h(k+1) = obj.cbf.Lf2_h_fh(z_cbf(:, k)) + obj.cbf.LgLf_h_fh(z_cbf(:, k))*tau_safe;  
+ 
+
+        
         end
 
         %% Plot
 
         t_arr = 0:ts:T;
+        t_arr = t_arr(1:sim_steps); 
         
         eta = z(1:3, :);
         eta_cbf = z_cbf(1:3, :);
@@ -197,20 +219,27 @@ classdef Ship
 
 
         % --- plot h and gradient of h
+% 
+%         h_arr = zeros(size(t_arr));
+%         deta_h_arr = zeros(size(t_arr));
+% 
+%         for i = 1:length(t_arr)
+%             %-(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]);
+%             h_arr(i) = obj.cbf.h_fh([eta_cbf(:, i); nu_cbf(:, i)]);
+%             deta_h_arr(i) = 0;
+%         end
 
-        h_arr = zeros(size(t_arr));
-        deta_h_arr = zeros(size(t_arr));
+        size(h)
+        size(d_h(1:end-1))
+%         size(dd_h(1:end-1))
 
-        for i = 1:length(t_arr)
-            %-(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]);
-            h_arr(i) = obj.cbf.h_fh([eta_cbf(:, i); nu_cbf(:, i)]);
-            deta_h_arr(i) = 0;
-        end
-
-        plot(t_arr, h_arr, '-o')
+        plot(t_arr, h, '-o')
         hold on
-        plot(t_arr, deta_h_arr, '-o')
+        plot(t_arr, d_h(1:end-1), '-o')
         hold off
+%         hold on
+%         plot(t_arr, dd_h(1:end-1), '-o')
+%         hold off
         xlabel('Time')
         ylabel('')
         legend('h', 'd_{eta} h')
