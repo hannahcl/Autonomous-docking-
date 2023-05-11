@@ -98,21 +98,11 @@ classdef Ship
           
           nu_ref = obj.ctrl_eta(eta); 
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
-
-          disp('new time step')
-          eta
-          nu
-          tau_nominell
-
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
           nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); %OBS change to nonlienar model
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
-
-
-
-
       end
 
    end
@@ -121,7 +111,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 20; 
+        T = 10; 
         ts = 0.05; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -144,8 +134,7 @@ classdef Ship
             end
     
             z(:, k+1) = z(:, k) + ts*sum_b; 
-            %tau(:, k+1) = obj.ctrl_nu_nominell(z(1:3, k)); 
-    
+
         end
 
         %% Run simulation with cbf
@@ -170,15 +159,6 @@ classdef Ship
             h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
             h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
             h4(k) = obj.cbf.h4_fh(z_cbf(:, k));
- 
-
-%             eta = z_cbf(1:3, k); 
-%             nu = z_cbf(4:6, k);
-%             tau_nom = obj.ctrl_nu_nominell(nu, nu_ref); 
-%             tau_safe = ctrl_nu_safe(tau_nom, nu, eta); 
-%             dd_h(k+1) = obj.cbf.Lf2_h_fh(z_cbf(:, k)) + obj.cbf.LgLf_h_fh(z_cbf(:, k))*tau_safe;  
- 
-
         
         end
 
@@ -189,57 +169,14 @@ classdef Ship
         
         eta = z(1:3, :);
         eta_cbf = z_cbf(1:3, :);
-        nu = z(4:6, :);
-        nu_cbf = z_cbf(4:6, :);
-        
+
         color_v = [0 0.4470 0.7410];
         color_u = [0.8500 0.3250 0.0980];
         color_r = [0.9290 0.6940 0.1250];
         color_cbf_traj = [0 0.7290 0.5000]; 
 
-        %subplot(1,2,1);
-        % --- plot tau
-
-%         plot(t_arr,tau(1, :),'Color',color_v)  
-%         hold on
-%         plot(t_arr,tau(2, :),'Color',color_u)
-%         plot(t_arr,tau(3, :),'Color',color_r)
-%         plot(t_arr,tau_safe(1, :),'--','Color',color_v)  % stippled
-%         plot(t_arr,tau_safe(2, :),'--','Color',color_u)  % stippled
-%         plot(t_arr,tau_safe(3, :),'--','Color',color_r)  % stippled
-%         hold off 
-%         xlabel('Time')
-%         ylabel('Tau')
-%         legend('tau 1', 'tau 2', 'tau 3', 'tau 1 safe', 'tau 2 safe', 'tau 3 safe')
-        
-        
         subplot(1,2,1);
-        % --- plot nu 
-
-%         plot(t_arr,nu(1, :),'Color',color_v)  
-%         hold on 
-%         plot(t_arr,nu(2, :),'Color',color_u)
-%         plot(t_arr,nu(3, :),'Color',color_r)
-%         plot(t_arr,nu_cbf(1, :),'--','Color',color_v)  % stippled
-%         plot(t_arr,nu_cbf(2, :),'--','Color',color_u)  % stippled
-%         plot(t_arr,nu_cbf(3, :),'--','Color',color_r)  % stippled
-%         hold off 
-%         xlabel('Time')
-%         ylabel('Nu')
-%         legend('v', 'u', 'r', 'v_cbf', 'u_cbf', 'r_cbf')
-
-
-        % --- plot h and gradient of h
-% 
-%         h_arr = zeros(size(t_arr));
-%         deta_h_arr = zeros(size(t_arr));
-% 
-%         for i = 1:length(t_arr)
-%             %-(obj.cbf.Lf2_h_fh(z) + obj.cbf.LfLg_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]);
-%             h_arr(i) = obj.cbf.h_fh([eta_cbf(:, i); nu_cbf(:, i)]);
-%             deta_h_arr(i) = 0;
-%         end
-
+        % --- plot h 
 
         plot(t_arr, h1, '-o')
         hold on
@@ -285,7 +222,7 @@ classdef Ship
         scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
         hold off
 
-        % Draw contour of doc
+        % Draw contour of doc: TODO: replace with lines
         
         x_plot= -5:0.1:5;
         f = zeros(1, length(x_plot)); 
