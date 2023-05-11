@@ -35,7 +35,7 @@ classdef Ship
 
          %initial values 
          obj.nu0 = [-1; 0.5; 1];
-         obj.eta0 = [-0; -3; 0]; 
+         obj.eta0 = [-1.5; -4; 0]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -55,9 +55,11 @@ classdef Ship
       function [c, ceq] = compute_constraints(obj,tau, nu, eta)
         z = [eta; nu]; 
         c = zeros(4, 1); 
-        for i=1:4
-           % c(i) = -(obj.cbf.grad_h1_fh(eta)*obj.dyn.compute_R(eta)*nu + obj.cbf.alpha*obj.cbf.h1_fh(eta)); 
-            c(i) = -(obj.cbf.Lf2_h_fh(z) + obj.cbf.LgLf_h_fh(z)*tau + obj.cbf.K_alpha*[obj.cbf.h_fh(z); obj.cbf.Lf_h_fh(z)]); 
+        
+        for i=1:4 
+            c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
+            c(2) = -(obj.cbf.Lf2_h2_fh(z) + obj.cbf.LgLf_h2_fh(z)*tau + obj.cbf.K2_alpha*[obj.cbf.h2_fh(z); obj.cbf.Lf_h2_fh(z)]);
+            c(3) = -(obj.cbf.Lf2_h3_fh(z) + obj.cbf.LgLf_h3_fh(z)*tau + obj.cbf.K3_alpha*[obj.cbf.h3_fh(z); obj.cbf.Lf_h3_fh(z)]);
         end
          ceq = 0;   
       end
@@ -115,7 +117,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 10; 
+        T = 5; 
         ts = 0.05; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -145,9 +147,10 @@ classdef Ship
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
         z_cbf(:, 1) = obj.z0;
-        h = zeros(1,sim_steps);
-        d_h = zeros(1,sim_steps);
-%         dd_h = zeros(1,sim_steps);
+        h1 = zeros(1,sim_steps);
+        h2 = zeros(1,sim_steps);
+        h3 = zeros(1,sim_steps);
+
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -158,8 +161,10 @@ classdef Ship
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            h(k) = obj.cbf.h_fh(z_cbf(:, k)); 
-            d_h(k+1) = obj.cbf.Lf_h_fh(z_cbf(:, k)); 
+            h1(k) = obj.cbf.h1_fh(z_cbf(:, k)); 
+            h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
+            h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
+ 
 
 %             eta = z_cbf(1:3, k); 
 %             nu = z_cbf(4:6, k);
@@ -229,20 +234,16 @@ classdef Ship
 %             deta_h_arr(i) = 0;
 %         end
 
-        size(h)
-        size(d_h(1:end-1))
-%         size(dd_h(1:end-1))
 
-        plot(t_arr, h, '-o')
+        plot(t_arr, h1, '-o')
         hold on
-        plot(t_arr, d_h(1:end-1), '-o')
+        plot(t_arr, h2, '-o')
+        hold on
+        plot(t_arr, h3, '-o')
         hold off
-%         hold on
-%         plot(t_arr, dd_h(1:end-1), '-o')
-%         hold off
         xlabel('Time')
         ylabel('')
-        legend('h', 'd_{eta} h')
+        legend('h1', 'h2', 'h3')
 
         % --- Plotting trajectory of eta ---
 

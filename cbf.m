@@ -20,18 +20,32 @@ classdef cbf
 
         theta
 
-        h1_fh
-        grad_h1_fh
+%         h1_fh
+%         grad_h1_fh
 
         dyn
         A 
 
-        h_fh  
-        Lf_h_fh  
-        Lf2_h_fh  
-        LgLf_h_fh 
+        h1_fh  
+        Lf_h1_fh  
+        Lf2_h1_fh  
+        LgLf_h1_fh 
 
-        K_alpha 
+
+        h2_fh  
+        Lf_h2_fh  
+        Lf2_h2_fh  
+        LgLf_h2_fh 
+
+
+        h3_fh  
+        Lf_h3_fh  
+        Lf2_h3_fh  
+        LgLf_h3_fh 
+
+        K1_alpha 
+        K2_alpha
+        K3_alpha
 
 
     end
@@ -45,7 +59,7 @@ classdef cbf
             obj.k1 = 3; 
             obj.k2 = 1; 
             obj.k3 = obj.k2 - 0.1; 
-            obj.k4 = 10e-1; 
+            obj.k4 = 10e-3; 
             obj.k5 = 2.5; 
             obj.k6 = 1.5; 
             obj.d = sqrt(obj.k5^2 + obj.k6^2);
@@ -56,13 +70,27 @@ classdef cbf
             obj.dyn = ShipDynamics(); 
             obj.A = -obj.dyn.M\obj.dyn.N_lin; 
 
-            fhs = obj.create_fhs_for_2order(); 
-            obj.h_fh = fhs{1}; 
-            obj.Lf_h_fh = fhs{2}; 
-            obj.Lf2_h_fh = fhs{3}; 
-            obj.LgLf_h_fh = fhs{4}; 
+            fhs = obj.create_fhs_for_2order_h1(); 
+            obj.h1_fh = fhs{1}
+            obj.Lf_h1_fh = fhs{2}; 
+            obj.Lf2_h1_fh = fhs{3}; 
+            obj.LgLf_h1_fh = fhs{4}; 
 
-            obj.K_alpha = [1 2]; 
+            fhs = obj.create_fhs_for_2order_h2(); 
+            obj.h2_fh = fhs{1}
+            obj.Lf_h2_fh = fhs{2}; 
+            obj.Lf2_h2_fh = fhs{3}; 
+            obj.LgLf_h2_fh = fhs{4}; 
+
+            fhs = obj.create_fhs_for_2order_h3(); 
+            obj.h3_fh = fhs{1} 
+            obj.Lf_h3_fh = fhs{2}; 
+            obj.Lf2_h3_fh = fhs{3}; 
+            obj.LgLf_h3_fh = fhs{4}; 
+
+            obj.K1_alpha = [1 2]; 
+            obj.K2_alpha = [1 2];
+            obj.K3_alpha = [1 2];
 
 %             fhs = obj.create_func_handles(); 
 %             obj.h1_fh = fhs{1};  
@@ -70,19 +98,92 @@ classdef cbf
    
         end
 
-        function fhs = create_fhs_for_2order(obj)
+        function fhs = create_fhs_for_2order_h1(obj)
 
             z = sym('z', [6 1]);
 
             %define h
-            syms x
-            sig = @(x) 1/(1+exp(-x)); 
-            doc= @(x) -obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
-             
-            h(z) = doc(z(1)) - z(2); 
-
+%             syms x
+%             sig = @(x) 1/(1+exp(-x)); 
+%             doc= @(x) -obj.k1 + obj.k1*(sig((x+obj.k3)/obj.k4) - sig((x-obj.k3)/obj.k4)); 
+%              
+%             h(z) = doc(z(1)) - z(2); 
             %h(z) = (z(1)^2 + (-1 -z(2))^2 - 1); 
+            h(z) = [0 -1 0 0 0 0]*z; 
 
+            %define f
+
+            f(z) = [
+                cos(z(3))*z(4) - sin(z(3))*z(5);
+                sin(z(3))*z(4) + cos(z(3))*z(5); 
+                z(6); 
+                obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
+                obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
+                obj.A(3,1)*z(4) + obj.A(3,2)*z(5) + obj.A(3,3)*z(6)
+            ]; 
+
+            %define g
+            g= zeros(6,3); 
+            g(4:6, 1:3) = eye(3); 
+
+            %compute lie derivatives
+            Lf_h = simplify((gradient(h,z).')*f); 
+            grad_Lf_h = gradient(Lf_h, z).'; 
+
+            Lf2_h = simplify(grad_Lf_h*f); 
+            LgLf_h = simplify(grad_Lf_h*g); 
+
+            h = matlabFunction(h, 'Vars', {z}); 
+            Lf_h = matlabFunction(Lf_h, 'Vars', {z}); 
+            Lf2_h = matlabFunction(Lf2_h, 'Vars', {z}); 
+            LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
+
+            fhs = {h; Lf_h; Lf2_h; LgLf_h};
+        end
+
+        function fhs = create_fhs_for_2order_h2(obj)
+
+            z = sym('z', [6 1]);
+
+            %define h
+            h(z) = [1 0 0 0 0 0]*z + 1; 
+
+            %define f
+
+            f(z) = [
+                cos(z(3))*z(4) - sin(z(3))*z(5);
+                sin(z(3))*z(4) + cos(z(3))*z(5); 
+                z(6); 
+                obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
+                obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
+                obj.A(3,1)*z(4) + obj.A(3,2)*z(5) + obj.A(3,3)*z(6)
+            ]; 
+
+            %define g
+            g= zeros(6,3); 
+            g(4:6, 1:3) = eye(3); 
+
+            %compute lie derivatives
+            Lf_h = simplify((gradient(h,z).')*f); 
+            grad_Lf_h = gradient(Lf_h, z).'; 
+
+            Lf2_h = simplify(grad_Lf_h*f); 
+            LgLf_h = simplify(grad_Lf_h*g); 
+
+            h = matlabFunction(h, 'Vars', {z}); 
+            Lf_h = matlabFunction(Lf_h, 'Vars', {z}); 
+            Lf2_h = matlabFunction(Lf2_h, 'Vars', {z}); 
+            LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
+
+            fhs = {h; Lf_h; Lf2_h; LgLf_h};
+        end
+
+        function fhs = create_fhs_for_2order_h3(obj)
+
+            z = sym('z', [6 1]);
+
+            %define h
+            h(z) = [-1 0 0 0 0 0]*z +1; 
 
             %define f
 
