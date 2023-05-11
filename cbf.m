@@ -43,9 +43,15 @@ classdef cbf
         Lf2_h3_fh  
         LgLf_h3_fh 
 
+        h4_fh  
+        Lf_h4_fh  
+        Lf2_h4_fh  
+        LgLf_h4_fh 
+
         K1_alpha 
         K2_alpha
         K3_alpha
+        K4_alpha
 
 
     end
@@ -88,9 +94,16 @@ classdef cbf
             obj.Lf2_h3_fh = fhs{3}; 
             obj.LgLf_h3_fh = fhs{4}; 
 
+            fhs = obj.create_fhs_for_2order_h4(); 
+            obj.h4_fh = fhs{1} 
+            obj.Lf_h4_fh = fhs{2}; 
+            obj.Lf2_h4_fh = fhs{3}; 
+            obj.LgLf_h4_fh = fhs{4};
+
             obj.K1_alpha = [1 2]; 
             obj.K2_alpha = [1 2];
             obj.K3_alpha = [1 2];
+            obj.K4_alpha = [1 2];
 
 %             fhs = obj.create_func_handles(); 
 %             obj.h1_fh = fhs{1};  
@@ -109,7 +122,7 @@ classdef cbf
 %              
 %             h(z) = doc(z(1)) - z(2); 
             %h(z) = (z(1)^2 + (-1 -z(2))^2 - 1); 
-            h(z) = [0 -1 0 0 0 0]*z; 
+            h(z) = [0 -1 0 0 0 0]*z -3; 
 
             %define f
 
@@ -184,6 +197,43 @@ classdef cbf
 
             %define h
             h(z) = [-1 0 0 0 0 0]*z +1; 
+
+            %define f
+
+            f(z) = [
+                cos(z(3))*z(4) - sin(z(3))*z(5);
+                sin(z(3))*z(4) + cos(z(3))*z(5); 
+                z(6); 
+                obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
+                obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
+                obj.A(3,1)*z(4) + obj.A(3,2)*z(5) + obj.A(3,3)*z(6)
+            ]; 
+
+            %define g
+            g= zeros(6,3); 
+            g(4:6, 1:3) = eye(3); 
+
+            %compute lie derivatives
+            Lf_h = simplify((gradient(h,z).')*f); 
+            grad_Lf_h = gradient(Lf_h, z).'; 
+
+            Lf2_h = simplify(grad_Lf_h*f); 
+            LgLf_h = simplify(grad_Lf_h*g); 
+
+            h = matlabFunction(h, 'Vars', {z}); 
+            Lf_h = matlabFunction(Lf_h, 'Vars', {z}); 
+            Lf2_h = matlabFunction(Lf2_h, 'Vars', {z}); 
+            LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
+
+            fhs = {h; Lf_h; Lf2_h; LgLf_h};
+        end
+
+        function fhs = create_fhs_for_2order_h4(obj)
+
+            z = sym('z', [6 1]);
+
+            %define h
+            h(z) = [0 -1 0 0 0 0]*z; 
 
             %define f
 

@@ -35,7 +35,7 @@ classdef Ship
 
          %initial values 
          obj.nu0 = [-1; 0.5; 1];
-         obj.eta0 = [-1.5; -4; 0]; 
+         obj.eta0 = [3.5; -4; pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -55,9 +55,13 @@ classdef Ship
       function [c, ceq] = compute_constraints(obj,tau, nu, eta)
         z = [eta; nu]; 
         c = zeros(4, 1); 
-        
+
         for i=1:4 
-            c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
+            if (abs(z(1)) > 1)
+                c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
+            else
+                c(1) = -(obj.cbf.Lf2_h4_fh(z) + obj.cbf.LgLf_h4_fh(z)*tau + obj.cbf.K4_alpha*[obj.cbf.h4_fh(z); obj.cbf.Lf_h4_fh(z)]); 
+            end
             c(2) = -(obj.cbf.Lf2_h2_fh(z) + obj.cbf.LgLf_h2_fh(z)*tau + obj.cbf.K2_alpha*[obj.cbf.h2_fh(z); obj.cbf.Lf_h2_fh(z)]);
             c(3) = -(obj.cbf.Lf2_h3_fh(z) + obj.cbf.LgLf_h3_fh(z)*tau + obj.cbf.K3_alpha*[obj.cbf.h3_fh(z); obj.cbf.Lf_h3_fh(z)]);
         end
@@ -117,7 +121,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 5; 
+        T = 20; 
         ts = 0.05; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -150,6 +154,7 @@ classdef Ship
         h1 = zeros(1,sim_steps);
         h2 = zeros(1,sim_steps);
         h3 = zeros(1,sim_steps);
+        h4 = zeros(1,sim_steps);
 
 
         for k = 1:sim_steps 
@@ -164,6 +169,7 @@ classdef Ship
             h1(k) = obj.cbf.h1_fh(z_cbf(:, k)); 
             h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
             h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
+            h4(k) = obj.cbf.h4_fh(z_cbf(:, k));
  
 
 %             eta = z_cbf(1:3, k); 
@@ -240,10 +246,12 @@ classdef Ship
         plot(t_arr, h2, '-o')
         hold on
         plot(t_arr, h3, '-o')
+        hold on
+        plot(t_arr, h4, '-o')
         hold off
         xlabel('Time')
         ylabel('')
-        legend('h1', 'h2', 'h3')
+        legend('h1', 'h2', 'h3', 'h4')
 
         % --- Plotting trajectory of eta ---
 
