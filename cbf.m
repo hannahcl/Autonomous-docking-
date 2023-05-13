@@ -85,6 +85,7 @@ classdef cbf
             obj.Lf2_h1_fh = fhs{3}; 
             obj.LgLf_h1_fh = fhs{4}; 
 
+
             h2(z) = [1 0 0 0 0 0]*z + 1;
             fhs = obj.create_fhs_for_2order_hi(h2, z); 
             obj.h2_fh = fhs{1}
