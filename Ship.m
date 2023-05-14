@@ -36,8 +36,8 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [-1; 2; 0];
-         obj.eta0 = [-0.8; -4; pi/8]; 
+         obj.nu0 = [0; 0; 0];
+         obj.eta0 = [-0.0; -4; pi/8]; 
          obj.z0 = [obj.eta0; obj.nu0];
          obj.dyn.tau_wind = [0; 0; 0]; 
 
@@ -73,11 +73,11 @@ classdef Ship
         end
 
         %Barrier for keeping the system observable
-        if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
-            c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
-        else
-            c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
-        end
+%         if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
+%             c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
+%         else
+%             c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+%         end
 
          ceq = 0;   
       end
@@ -107,8 +107,8 @@ classdef Ship
           nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
-         % nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau); 
-          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
+          nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau); 
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -128,12 +128,12 @@ classdef Ship
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
-          % ----
-          if (abs(obj.cbf.ho1_fh(z))> 15 )
-              z
-              tau_safe
-          end
-          % ----
+%           % ----
+%           if (abs(obj.cbf.ho1_fh(z))> 15 )
+%               z
+%               tau_safe
+%           end
+%           % ----
 
           %nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
           nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
@@ -147,7 +147,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 4; 
+        T = 100; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 

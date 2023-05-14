@@ -121,14 +121,14 @@ classdef cbf
 
             %OBS - might get numerical complication when one of these get
             %infinetly large
-            ho1(z) =(-z(1) +z(2)*tan(z(3) - pi/4)); %(-z(1) -abs(z(2))*tan(z(3) - pi/4)); %where pi/4 is the fields of view
+            ho1(z) = 0.01*(-z(1) +z(2)*tan(z(3) - pi/4)); %(-z(1) -abs(z(2))*tan(z(3) - pi/4)); %where pi/4 is the fields of view
             fhs = obj.create_fhs_for_2order_hi(ho1, z); 
             obj.ho1_fh = fhs{1}; 
             obj.Lf_ho1_fh = fhs{2}; 
             obj.Lf2_ho1_fh = fhs{3}; 
             obj.LgLf_ho1_fh = fhs{4};
 
-            ho2(z) =(-z(1) +z(2)*tan(z(3) + pi/4)); 
+            ho2(z) = 0.01*(-z(1) +z(2)*tan(z(3) + pi/4)); 
             fhs = obj.create_fhs_for_2order_hi(ho2, z); 
             obj.ho2_fh = fhs{1}; 
             obj.Lf_ho2_fh = fhs{2}; 
