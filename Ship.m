@@ -36,10 +36,10 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [-1; 2; 1];
-         obj.eta0 = [-2.5; -4; -pi/4]; 
+         obj.nu0 = [-1; 2; 0];
+         obj.eta0 = [-0.8; -4; pi/8]; 
          obj.z0 = [obj.eta0; obj.nu0];
-         obj.dyn.tau_wind = [-0.5; 0; -0.1]; 
+         obj.dyn.tau_wind = [0; 0; 0]; 
 
          
          
@@ -73,8 +73,11 @@ classdef Ship
         end
 
         %Barrier for keeping the system observable
-%         c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
-%         c(5) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+        if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
+            c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
+        else
+            c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+        end
 
          ceq = 0;   
       end
@@ -85,7 +88,7 @@ classdef Ship
         nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
 
         options = optimoptions(@fmincon,'Display','none');
-        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options)
+        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
 
       end
 
@@ -125,6 +128,13 @@ classdef Ship
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
+          % ----
+          if (abs(obj.cbf.ho1_fh(z))> 15 )
+              z
+              tau_safe
+          end
+          % ----
+
           %nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
           nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
@@ -137,7 +147,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 7; 
+        T = 4; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -170,6 +180,8 @@ classdef Ship
         h2 = zeros(1,sim_steps);
         h3 = zeros(1,sim_steps);
         h4 = zeros(1,sim_steps);
+        ho1 = zeros(1,sim_steps);
+        ho2 = zeros(1,sim_steps);
 
 
         for k = 1:sim_steps 
@@ -185,6 +197,8 @@ classdef Ship
             h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
             h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
             h4(k) = obj.cbf.h4_fh(z_cbf(:, k));
+            ho1(k) = obj.cbf.ho1_fh(z_cbf(:, k));
+            ho2(k) = obj.cbf.ho2_fh(z_cbf(:, k));
 
         end
 
@@ -211,10 +225,14 @@ classdef Ship
         plot(t_arr, h3, '-o')
         hold on
         plot(t_arr, h4, '-o')
+        hold on
+        plot(t_arr, ho1, '-o')
+        hold on
+        plot(t_arr, ho2, '-o')
         hold off
         xlabel('Time')
         ylabel('')
-        legend('h1', 'h2', 'h3', 'h4')
+        legend('h1', 'h2', 'h3', 'h4', 'ho1', 'ho2')
 
         % --- Plotting trajectory of eta ---
 
@@ -233,8 +251,8 @@ classdef Ship
         psi_safe = eta_cbf(3, 1:end-1);
 
         hold on
-        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi), arrow_length*sin(psi), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe), arrow_length*sin(psi_safe), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi+pi/2), arrow_length*sin(psi+pi/2), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe+pi/2), arrow_length*sin(psi_safe+pi/2), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         hold off
         xlabel('x')
         ylabel('y')
