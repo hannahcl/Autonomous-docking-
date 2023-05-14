@@ -34,8 +34,8 @@ classdef Ship
          obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
 
          %initial values 
-         obj.nu0 = [-1; 0.5; 1];
-         obj.eta0 = [3.5; -4; pi/4]; 
+         obj.nu0 = [-1; 2; 1];
+         obj.eta0 = [-2.5; -4; -pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
 
          
@@ -44,8 +44,8 @@ classdef Ship
 
       %% Controllers
 
-      function nu_ref = ctrl_eta(obj, eta)
-        nu_ref = -eta; 
+      function nu_ref = ctrl_eta(obj, eta, eta_ref)
+        nu_ref = -(eta - eta_ref); 
       end
 
       function tau = ctrl_nu_nominell(obj, nu, nu_ref)
@@ -54,17 +54,25 @@ classdef Ship
 
       function [c, ceq] = compute_constraints(obj,tau, nu, eta)
         z = [eta; nu]; 
-        c = zeros(4, 1); 
+        c = zeros(5, 1); 
 
-        for i=1:4 
-            if (abs(z(1)) > 1)
-                c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
-            else
-                c(1) = -(obj.cbf.Lf2_h4_fh(z) + obj.cbf.LgLf_h4_fh(z)*tau + obj.cbf.K4_alpha*[obj.cbf.h4_fh(z); obj.cbf.Lf_h4_fh(z)]); 
-            end
+        
+        if (abs(z(1)) > 1)
+            %Barrier for stage 1, before driving into berth
+            c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
+            c(2) = 0; 
+            c(3) = 0; 
+        else
+            %Barrier for stage 2, when driving into berth
+            c(1) = -(obj.cbf.Lf2_h4_fh(z) + obj.cbf.LgLf_h4_fh(z)*tau + obj.cbf.K4_alpha*[obj.cbf.h4_fh(z); obj.cbf.Lf_h4_fh(z)]); 
             c(2) = -(obj.cbf.Lf2_h2_fh(z) + obj.cbf.LgLf_h2_fh(z)*tau + obj.cbf.K2_alpha*[obj.cbf.h2_fh(z); obj.cbf.Lf_h2_fh(z)]);
             c(3) = -(obj.cbf.Lf2_h3_fh(z) + obj.cbf.LgLf_h3_fh(z)*tau + obj.cbf.K3_alpha*[obj.cbf.h3_fh(z); obj.cbf.Lf_h3_fh(z)]);
         end
+
+        %Barrier for keeping the system observable
+%         c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
+%         c(5) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+
          ceq = 0;   
       end
 
@@ -84,7 +92,13 @@ classdef Ship
           eta = z(1:3); 
           nu = z(4:6); 
 
-          nu_ref = obj.ctrl_eta(eta); 
+          if (abs(eta(1)) > 1)
+            eta_ref = [0; -3.2; 0]; 
+          else
+            eta_ref = [0; 0; 0]; 
+          end
+
+          nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
           nu_dot = obj.dyn.linear_model_nu(nu, tau); %OBS change to nonlienar model
@@ -95,8 +109,15 @@ classdef Ship
       function z_dot = closed_loop_model_z_cbf(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
+
+
+          if (abs(eta(1)) > 1)
+            eta_ref = [0; -3.2; 0]; 
+          else
+            eta_ref = [0; 0; 0]; 
+          end
           
-          nu_ref = obj.ctrl_eta(eta); 
+          nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
@@ -111,8 +132,8 @@ classdef Ship
 
       function sim(obj)
           
-        T = 10; 
-        ts = 0.05; 
+        T = 7; 
+        ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
         b = [1/6, 1/3, 1/3, 1/6]; 
@@ -159,7 +180,7 @@ classdef Ship
             h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
             h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
             h4(k) = obj.cbf.h4_fh(z_cbf(:, k));
-        
+
         end
 
         %% Plot
