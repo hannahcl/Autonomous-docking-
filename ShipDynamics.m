@@ -1,38 +1,38 @@
 classdef ShipDynamics
 
    properties
-        m = 5; 
-        Iz = 1; 
+        m = 75; %[kg]
+        Iz = 22; %[kg*m^2] % second moment of interitia = 0.021; %[m^4]
         U = 10; 
-        x_g = 1;
+        x_g = 0;
 
-        X_u_dot = 1; 
-        Y_u_dot = 1; 
-        X_v_dot = 1; 
-        Y_v_dot = 1; 
-        Y_r_dot = 1; 
+        X_u_dot = -5; %[kg/m^2]
+        Y_u_dot = -20; %[kg/m^2]
+        X_v_dot = -10; %[kg/m^2]
+        Y_v_dot = -30; %[kg/m^2]
+        Y_r_dot = -10; %[kg·m^2/rad]
 
-        X_u = 1;
-        Y_v = 1; 
-        Y_r = 1; 
-        N_v = 1; 
-        N_r = 1;
+        X_u = -1;
+        Y_v = -30; 
+        Y_r = -7; 
+        N_v = -7; 
+        N_r = -2;
 
         X_uu = 1; 
-        Y_vv = 1; 
-        Y_rv = 1; 
-        Y_vr = 1; 
-        Y_rr = 1; 
-        N_vv = 1; 
-        N_rv = 1; 
-        N_vr = 1; 
-        N_rr = 1; 
+        Y_vv = 5; 
+        Y_rv = 0.1; 
+        Y_vr = 0.1; 
+        Y_rr = 0.1; 
+        N_vv = 5; 
+        N_rv = 0.1; 
+        N_vr = 0.1; 
+        N_rr = 1.1; 
 
-        A_11 = 1; 
-        A_22 = 1; 
-        A_26 = 1;
-        A_62 = 1; 
-        A_66 = 1; 
+        A_11 = 10; 
+        A_22 = 10; 
+        A_26 = 10;
+        A_62 = 10; 
+        A_66 = 10; 
 
         B_11v = 1; 
         B_22v = 1; 
@@ -114,27 +114,19 @@ classdef ShipDynamics
          eta_dot = R*nu; 
       end
 
-      function nu_dot = model_nu(obj, nu, tau)
-        N = obj.compute_N(nu); 
-        nu_dot = obj.M\(tau + obj.tau_wave + obj.tau_wind - N*nu); 
+      function nu_dot = model_nu(obj, nu, nu_current, tau)
+        nu_relative = nu - nu_current; 
+
+        C_RB = obj.compute_C_RB(nu);
+        N = obj.compute_N(nu_relative); 
+
+        nu_dot = obj.M\(tau + obj.tau_wave + obj.tau_wind -C_RB*nu - N*nu_relative); 
       end
 
-      function nu_dot = linear_model_nu(obj, nu, tau) 
-        nu_dot = -obj.M\obj.N_lin*nu + tau+ obj.tau_wave + obj.tau_wind;
+      function nu_dot = linear_model_nu(obj, nu, tau)  
+        nu_dot = -obj.M\obj.N_lin*nu + tau + obj.tau_wave + obj.tau_wind;
       end
 
-   end
-
-
-   methods
-      function obj = set.tau_wind(obj, val)
-         obj.tau_wind = val; 
-      end
-
-      function obj = set.tau_wave(obj, val)
-         obj.tau_wave = val; 
-      end
-    
    end
 
    methods(Access = private)
@@ -156,23 +148,22 @@ classdef ShipDynamics
                (-obj.Y_v_dot*v-obj.Y_r_dot*r) obj.X_u_dot*u 0]; 
       end
 
-      function Dn = compute_Dn(obj, nu)
-        u = abs(nu(1)); 
-        v = abs(nu(2)); 
-        r = abs(nu(3)); 
-
-        Dn = [
-            obj.X_uu*u 0 0; 
-            0 obj.Y_vv*v+obj.Y_rv*r obj.Y_vr*v+obj.Y_rr*r; 
-            0 obj.N_vv*v+obj.N_rv*r obj.N_vr*v+obj.N_rr*r]; 
-      end
-
       function N = compute_N(obj, nu)
-        N = (obj.compute_C_RB(nu) + obj.compute_C_A(nu)) ...
-            + obj.D ...
-            + obj.compute_Dn(nu); 
+        CA = obj.compute_C_A(nu); 
+        N = CA + obj.D;  
       end
 
+   end
+
+   methods
+      function obj = set.tau_wind(obj, val)
+         obj.tau_wind = val; 
+      end
+
+      function obj = set.tau_wave(obj, val)
+         obj.tau_wave = val; 
+      end
+    
    end
 
 end

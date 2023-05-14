@@ -12,6 +12,7 @@ classdef Ship
 
         cbf
         dyn
+        nu_current
  
         nu0 
         eta0
@@ -23,6 +24,7 @@ classdef Ship
 
          obj.cbf = cbf(); 
          obj.dyn = ShipDynamics(); 
+         obj.nu_current = zeros(3,1); 
 
          %Nominal controler with feedforward
          obj.A = -obj.dyn.M\obj.dyn.N_lin;
@@ -37,6 +39,7 @@ classdef Ship
          obj.nu0 = [-1; 2; 1];
          obj.eta0 = [-2.5; -4; -pi/4]; 
          obj.z0 = [obj.eta0; obj.nu0];
+         obj.dyn.tau_wind = [-0.5; 0; -0.1]; 
 
          
          
@@ -82,7 +85,7 @@ classdef Ship
         nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
 
         options = optimoptions(@fmincon,'Display','none');
-        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options);
+        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options)
 
       end
 
@@ -101,7 +104,8 @@ classdef Ship
           nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
-          nu_dot = obj.dyn.linear_model_nu(nu, tau); %OBS change to nonlienar model
+         % nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau); 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -121,7 +125,8 @@ classdef Ship
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
-          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); %OBS change to nonlienar model
+          %nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
+          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
