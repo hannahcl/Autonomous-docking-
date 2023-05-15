@@ -2,9 +2,9 @@ classdef Ship
 
    properties
 
+        A
         B
         C
-        A
         Q_lqr
         R_lqr
         K
@@ -28,7 +28,7 @@ classdef Ship
 
          %Nominal controler with feedforward
          obj.A = -obj.dyn.M\obj.dyn.N_lin;
-         obj.B = eye(3); 
+         obj.B = inv(obj.dyn.M); 
          obj.C = eye(3); 
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
@@ -135,8 +135,8 @@ classdef Ship
 %           end
 %           % ----
 
-          %nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
-          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
+          nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -147,7 +147,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 100; 
+        T = 200; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
