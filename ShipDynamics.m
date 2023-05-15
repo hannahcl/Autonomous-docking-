@@ -31,8 +31,8 @@ classdef ShipDynamics
         A_11 = 10; 
         A_22 = 10; 
         A_26 = 10;
-        A_62 = 10; 
-        A_66 = 10; 
+        A_62 = 0.1; 
+        A_66 = 0.1; 
 
         B_11v = 1; 
         B_22v = 1; 
@@ -48,6 +48,9 @@ classdef ShipDynamics
         C_A_lin
         D_lin
         N_lin
+        A_nu
+        B_nu
+        C_nu; 
 
         tau_wind
         tau_wave
@@ -98,7 +101,11 @@ classdef ShipDynamics
              0 obj.Y_v obj.Y_r;
              0 obj.N_v obj.N_r];
 
-         obj.N_lin = obj.C_RB_lin + obj.C_A_lin + obj.D_lin
+         obj.N_lin = obj.C_RB_lin + obj.C_A_lin + obj.D_lin; 
+
+         obj.A_nu = -obj.M\obj.N_lin; 
+         obj.B_nu = inv(obj.M); 
+         obj.C_nu = eye(3); 
          
        end
 

@@ -22,9 +22,7 @@ classdef cbf
 
         theta
 
-
         dyn
-        A 
 
         h1_fh  
         Lf_h1_fh  
@@ -86,7 +84,6 @@ classdef cbf
             obj.theta = obj.compute_theta(); 
 
             obj.dyn = ShipDynamics(); 
-            obj.A = -obj.dyn.M\obj.dyn.N_lin; 
 
             z = sym('z', [6 1]);
 
@@ -152,14 +149,14 @@ classdef cbf
                 cos(z(3))*z(4) - sin(z(3))*z(5);
                 sin(z(3))*z(4) + cos(z(3))*z(5); 
                 z(6); 
-                obj.A(1,1)*z(4) + obj.A(1,2)*z(5) + obj.A(1,3)*z(6); 
-                obj.A(2,1)*z(4) + obj.A(2,2)*z(5) + obj.A(2,3)*z(6); 
-                obj.A(3,1)*z(4) + obj.A(3,2)*z(5) + obj.A(3,3)*z(6)
+                obj.dyn.A_nu(1,1)*z(4) + obj.dyn.A_nu(1,2)*z(5) + obj.dyn.A_nu(1,3)*z(6); 
+                obj.dyn.A_nu(2,1)*z(4) + obj.dyn.A_nu(2,2)*z(5) + obj.dyn.A_nu(2,3)*z(6); 
+                obj.dyn.A_nu(3,1)*z(4) + obj.dyn.A_nu(3,2)*z(5) + obj.dyn.A_nu(3,3)*z(6)
             ]; 
 
             %define g
             g= zeros(6,3); 
-            g(4:6, 1:3) = eye(3); 
+            g(4:6, 1:3) = obj.dyn.B_nu; 
 
             %compute lie derivatives
             Lf_h = simplify((gradient(h,z).')*f); 

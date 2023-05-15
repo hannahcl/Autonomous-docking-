@@ -2,9 +2,6 @@ classdef Ship
 
    properties
 
-        A
-        B
-        C
         Q_lqr
         R_lqr
         K
@@ -27,13 +24,10 @@ classdef Ship
          obj.nu_current = zeros(3,1); 
 
          %Nominal controler with feedforward
-         obj.A = -obj.dyn.M\obj.dyn.N_lin;
-         obj.B = inv(obj.dyn.M); 
-         obj.C = eye(3); 
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
-         obj.K = lqr(obj.A, obj.B, obj.Q_lqr, obj.R_lqr); 
-         obj.Kr = obj.B*(inv(obj.C/(obj.B*obj.K-obj.A)*obj.B)); 
+         obj.K = lqr(obj.dyn.A_nu, obj.dyn.B_nu, obj.Q_lqr, obj.R_lqr); 
+         obj.Kr = obj.dyn.B_nu*(inv(obj.dyn.C_nu/(obj.dyn.B_nu*obj.K-obj.dyn.A_nu)*obj.dyn.B_nu)); 
 
          %initial values 
          obj.nu0 = [0; 0; 0];
@@ -58,7 +52,6 @@ classdef Ship
       function [c, ceq] = compute_constraints(obj,tau, nu, eta)
         z = [eta; nu]; 
         c = zeros(5, 1); 
-
         
         if (abs(z(1)) > 1)
             %Barrier for stage 1, before driving into berth
@@ -147,7 +140,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 200; 
+        T = 50; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
