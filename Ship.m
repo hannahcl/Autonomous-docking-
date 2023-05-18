@@ -31,7 +31,7 @@ classdef Ship
 
          %initial values 
          obj.nu0 = [0; 0; 0];
-         obj.eta0 = [-14; -24; pi/8]; 
+         obj.eta0 = [-4; -4; pi/8]; 
          obj.z0 = [obj.eta0; obj.nu0];
          obj.dyn.tau_wind = [0; 0; 0]; 
 
@@ -66,22 +66,29 @@ classdef Ship
         end
 
         %Barrier for keeping the system observable
-%         if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
-%             c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
-%         else
-%             c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
-%         end
+        if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
+            c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
+        else
+            c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+        end
 
          ceq = 0;   
       end
 
       function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta)
+        disp('-- new timetep ----')
+        z = [eta; nu]; 
+        obj.cbf.Lf2_ho1_fh(z)
+        obj.cbf.Lf_ho2_fh(z)
+        obj.cbf.ho2_fh(z)
 
         f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
         nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
 
         options = optimoptions(@fmincon,'Display','none');
         tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
+
+        obj.cbf.LgLf_ho2_fh(z)*tau_safe
 
       end
 
