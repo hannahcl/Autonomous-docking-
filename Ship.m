@@ -31,7 +31,7 @@ classdef Ship
 
          %initial values 
          obj.nu0 = [0; 0; 0];
-         obj.eta0 = [-0.0; -4; pi/8]; 
+         obj.eta0 = [-14; -24; pi/8]; 
          obj.z0 = [obj.eta0; obj.nu0];
          obj.dyn.tau_wind = [0; 0; 0]; 
 
@@ -101,7 +101,6 @@ classdef Ship
           tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
           nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau); 
-          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -121,14 +120,7 @@ classdef Ship
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
-%           % ----
-%           if (abs(obj.cbf.ho1_fh(z))> 15 )
-%               z
-%               tau_safe
-%           end
-%           % ----
-
-          nu_dot = obj.dyn.model_nu(nu, nu_ref, tau_safe); %OBS change to nonlienar model
+          nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau_safe); 
           %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
@@ -140,7 +132,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 50; 
+        T = 200; 
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 

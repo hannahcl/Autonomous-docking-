@@ -133,8 +133,8 @@ classdef cbf
             obj.LgLf_ho2_fh = fhs{4};
 
             obj.K1_alpha = [1 2]; 
-            obj.K2_alpha = [10 20];
-            obj.K3_alpha = [10 20];
+            obj.K2_alpha = [1 2];
+            obj.K3_alpha = [1 2];
             obj.K4_alpha = [1 2];
             obj.Ko1_alpha = [1 2];
             obj.Ko2_alpha = [1 2];
