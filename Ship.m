@@ -76,19 +76,12 @@ classdef Ship
       end
 
       function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta)
-        disp('-- new timetep ----')
-        z = [eta; nu]; 
-        obj.cbf.Lf2_ho1_fh(z)
-        obj.cbf.Lf_ho2_fh(z)
-        obj.cbf.ho2_fh(z)
 
         f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
         nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
 
         options = optimoptions(@fmincon,'Display','none');
         tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
-
-        obj.cbf.LgLf_ho2_fh(z)*tau_safe
 
       end
 
@@ -139,7 +132,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 200; 
+        T = 5;  
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -260,15 +253,33 @@ classdef Ship
 
         % Draw contour of doc: TODO: replace with lines
         
-        x_plot= -5:0.1:5;
-        f = zeros(1, length(x_plot)); 
+        hold on; % Enable the "hold on" mode to keep the existing plot
         
-        for i =1:length(x_plot)
-           
-            f(i, :) = obj.cbf.f(x_plot(i)); 
-        end
+        % Draw lines on the plot
+
+
+        l1x = [-5, -1]; 
+        l1y = [-3; -3]; 
+
+        l2x = [-1, -1]; 
+        l2y = [-3; 0]; 
+
+        l3x = [-1, 1]; 
+        l3y = [0; 0]; 
+
+        l4x = [1, 1]; 
+        l4y = [0; -3]; 
+
+        l5x = [1, 5]; 
+        l5y = [-3; -3]; 
+        
+
         hold on
-        plot(x_plot, f);
+        plot(l1x,l1y, 'Color', [1 0.5 0]); 
+        plot(l2x,l2y, 'Color', [1 0.5 0]);
+        plot(l3x,l3y, 'Color', [1 0.5 0]);
+        plot(l4x,l4y, 'Color', [1 0.5 0]);
+        plot(l5x,l5y, 'Color', [1 0.5 0]);
         hold off
 
         legend('eta', 'eta_safe', 'eta_i', 'eta_f', 'eta_f_cbf', 'doc')
