@@ -54,6 +54,7 @@ classdef ShipDynamics
 
         tau_wind
         tau_wave
+        nu_current
 
 
    end
@@ -83,6 +84,7 @@ classdef ShipDynamics
       
          obj.tau_wave = zeros(3,1); 
          obj.tau_wind = zeros(3,1); 
+         obj.nu_current = zeros(3,1);
 
          % linear model
 
@@ -121,8 +123,8 @@ classdef ShipDynamics
          eta_dot = R*nu; 
       end
 
-      function nu_dot = model_nu(obj, nu, nu_current, tau)
-        nu_relative = nu - nu_current; 
+      function nu_dot = model_nu(obj, nu, tau)
+        nu_relative = nu - obj.nu_current; 
 
         C_RB = obj.compute_C_RB(nu);
         N = obj.compute_N(nu_relative); 

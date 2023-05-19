@@ -9,34 +9,24 @@ classdef ShipControll
 
         cbf
         dyn
-        nu_current
  
-        nu0 
-        eta0
-        z0
-
    end
    methods(Access = public)
       function obj = ShipControll()
 
-         obj.cbf = cbf(); 
+         %Dynimacs of the ship
          obj.dyn = ShipDynamics(); 
-         obj.nu_current = zeros(3,1); 
 
+         %Controll barrier functions
+         obj.cbf = cbf(); 
+        
+ 
          %Nominal controler with feedforward
          obj.Q_lqr = 10*eye(3); 
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.dyn.A_nu, obj.dyn.B_nu, obj.Q_lqr, obj.R_lqr); 
          obj.Kr = obj.dyn.B_nu*(inv(obj.dyn.C_nu/(obj.dyn.B_nu*obj.K-obj.dyn.A_nu)*obj.dyn.B_nu)); 
 
-         %initial values 
-         obj.nu0 = [0; 0; 0];
-         obj.eta0 = [-4; -4; pi/8]; 
-         obj.z0 = [obj.eta0; obj.nu0];
-         obj.dyn.tau_wind = [0; 0; 0]; 
-
-         
-         
       end
 
       %% Controllers
@@ -49,17 +39,16 @@ classdef ShipControll
         tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
-      function [c, ceq] = compute_constraints(obj,tau, nu, eta)
+      function [c, ceq] = compute_constraints(obj,tau, nu, eta, stage)
         z = [eta; nu]; 
-        c = zeros(5, 1); 
+        c = zeros(4, 1); 
         
-        if (abs(z(1)) > 1)
-            %Barrier for stage 1, before driving into berth
+        %Barrier for keeping the system from crashing into the dock
+        if (stage == 0)
             c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
             c(2) = 0; 
             c(3) = 0; 
         else
-            %Barrier for stage 2, when driving into berth
             c(1) = -(obj.cbf.Lf2_h4_fh(z) + obj.cbf.LgLf_h4_fh(z)*tau + obj.cbf.K4_alpha*[obj.cbf.h4_fh(z); obj.cbf.Lf_h4_fh(z)]); 
             c(2) = -(obj.cbf.Lf2_h2_fh(z) + obj.cbf.LgLf_h2_fh(z)*tau + obj.cbf.K2_alpha*[obj.cbf.h2_fh(z); obj.cbf.Lf_h2_fh(z)]);
             c(3) = -(obj.cbf.Lf2_h3_fh(z) + obj.cbf.LgLf_h3_fh(z)*tau + obj.cbf.K3_alpha*[obj.cbf.h3_fh(z); obj.cbf.Lf_h3_fh(z)]);
@@ -71,18 +60,25 @@ classdef ShipControll
         else
             c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
         end
-
          ceq = 0;   
       end
 
-      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta)
+      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
 
         f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
-        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta);
+        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta, stage);
 
         options = optimoptions(@fmincon,'Display','none');
         tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
 
+      end
+
+      function eta_ref = give_eta_ref(obj, stage)
+          if (stage == 0)
+            eta_ref = [0; -3.2; 0]; 
+          else
+            eta_ref = [0; 0; 0]; 
+          end
       end
 
       %% Closed loop models
@@ -92,15 +88,16 @@ classdef ShipControll
           nu = z(4:6); 
 
           if (abs(eta(1)) > 1)
-            eta_ref = [0; -3.2; 0]; 
+            stage = 0;  %Converge towards dock
           else
-            eta_ref = [0; 0; 0]; 
+            stage = 1;  %Drive into berth
           end
 
+          eta_ref = obj.give_eta_ref(stage); 
           nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu, nu_ref); 
 
-          nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau); 
+          nu_dot = obj.dyn.model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -109,18 +106,18 @@ classdef ShipControll
           eta = z(1:3); 
           nu = z(4:6); 
 
-
           if (abs(eta(1)) > 1)
-            eta_ref = [0; -3.2; 0]; 
+            stage = 0;  %Converge towards dock
           else
-            eta_ref = [0; 0; 0]; 
+            stage = 1;  %Drive into berth
           end
-          
+
+          eta_ref = obj.give_eta_ref(stage); 
           nu_ref = obj.ctrl_eta(eta, eta_ref); 
           tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
-          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
+          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta, stage); 
 
-          nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau_safe); 
+          nu_dot = obj.dyn.model_nu(nu, tau_safe); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -129,11 +126,9 @@ classdef ShipControll
 
   methods
 
-      function sim(obj)
-          
-        T = 50;  
-        ts = 0.2; 
-     
+      function simRK4(obj, z0, T, ts)
+
+        %Butcher tableau
         a = [0, 0.5, 0.5, 1]; 
         b = [1/6, 1/3, 1/3, 1/6]; 
 
@@ -142,7 +137,7 @@ classdef ShipControll
     
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
-        z(:, 1) = obj.z0; 
+        z(:, 1) = z0; 
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -158,7 +153,7 @@ classdef ShipControll
 
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
-        z_cbf(:, 1) = obj.z0;
+        z_cbf(:, 1) = z0;
         h1 = zeros(1,sim_steps);
         h2 = zeros(1,sim_steps);
         h3 = zeros(1,sim_steps);
@@ -194,7 +189,7 @@ classdef ShipControll
         color_nom = [0 0.4470 0.7410];
         color_cbf = [0 0.7290 0.5000]; 
 
-        % --- plot h 
+        % --- plot control barrier functions 
         subplot(1,2,1); 
 
         plot(t_arr, h1)
