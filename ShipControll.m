@@ -1,4 +1,4 @@
-classdef Ship
+classdef ShipControll
 
    properties
 
@@ -17,7 +17,7 @@ classdef Ship
 
    end
    methods(Access = public)
-      function obj = Ship()
+      function obj = ShipControll()
 
          obj.cbf = cbf(); 
          obj.dyn = ShipDynamics(); 

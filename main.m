@@ -1,4 +1,4 @@
 clear all; 
-ship = Ship()
+ship = ShipControll()
 
 ship.sim(); 
