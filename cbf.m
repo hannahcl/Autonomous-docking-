@@ -3,25 +3,6 @@ classdef cbf
     %each h in cbf. 
     properties
 
-        %k1 = dedpth of the doc
-        %k2 = width of the doc
-        %k3 = tollerance for difference between sigmoid func and acctual doc
-        %k4 = sparpnes of sigmoid
-        
-        %k5 = length of boat
-        %k6 = width of boat
-
-        k1
-        k2
-        k3
-        k4
-        k5
-        k6
-        d
-        alpha
-
-        theta
-
         dyn
 
         h1_fh  
@@ -72,17 +53,6 @@ classdef cbf
 
         function obj = cbf()
 
-            obj.k1 = 3; 
-            obj.k2 = 1; 
-            obj.k3 = obj.k2 - 0.1; 
-            obj.k4 = 10e-3; 
-            obj.k5 = 2.5; 
-            obj.k6 = 1.5; 
-            obj.d = sqrt(obj.k5^2 + obj.k6^2);
-            obj.alpha = 1; 
-          
-            obj.theta = obj.compute_theta(); 
-
             obj.dyn = ShipDynamics(); 
 
             z = sym('z', [6 1]);
@@ -116,9 +86,7 @@ classdef cbf
             obj.Lf2_h4_fh = fhs{3}; 
             obj.LgLf_h4_fh = fhs{4};
 
-            %OBS - might get numerical complication when one of these get
-            %infinetly large
-            ho1(z) = -z(1) +z(2)*atan(z(3) - pi/4); %(-z(1) -abs(z(2))*tan(z(3) - pi/4)); %where pi/4 is the fields of view
+            ho1(z) = -z(1) +z(2)*atan(z(3) - pi/4); 
             fhs = obj.create_fhs_for_2order_hi(ho1, z); 
             obj.ho1_fh = fhs{1}; 
             obj.Lf_ho1_fh = fhs{2}; 
@@ -173,51 +141,6 @@ classdef cbf
             fhs = {h; Lf_h; Lf2_h; LgLf_h};
         end
 
-      
-
-      
-        function val_hi = hi(obj, eta, i)
-            ext_pt = obj.compute_extremum(eta, i); 
-            val_hi = obj.f(ext_pt(1)) - ext_pt(2); 
-        end
-
-        function f_val = f(obj, x)
-            temp1 = (x+obj.k3)/obj.k4; 
-            temp2 = (x-obj.k3)/obj.k4;
-
-            temp3 = 1/(1+exp(temp1)); 
-            temp4 = 1/(1+exp(temp2)); 
-            
-            f_val = -obj.k1 - obj.k1*(temp3 - temp4);
-        end
-
     end
 
-    methods(Access = private)
-
-        function theta = compute_theta(obj) 
-            theta1 = atan((obj.k5/2)/(obj.k6/2)); 
-            theta4 = theta1 + pi/2;
-            theta3 = theta1 + pi; 
-            theta2 = theta1 - pi/2;  
-
-            theta = [theta1; theta2; theta3; theta4]; 
-
-        end
-
-
-
-        function sig_val = sig_func(obj, x)
-            sig_val= 1./(1+exp(-x)); 
-        end
-
-
-        function extremum = compute_extremum(obj, eta, i)
-            x = eta(1) + obj.k1*cos(eta(3) + obj.theta(i));
-            y = eta(2) + obj.k1*sin(eta(3) + obj.theta(i));
-            extremum = [x; y]; 
-        end
-
-
-    end
 end

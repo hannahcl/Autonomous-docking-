@@ -121,7 +121,6 @@ classdef Ship
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta); 
 
           nu_dot = obj.dyn.model_nu(nu, obj.nu_current, tau_safe); 
-          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -132,7 +131,7 @@ classdef Ship
 
       function sim(obj)
           
-        T = 5;  
+        T = 50;  
         ts = 0.2; 
      
         a = [0, 0.5, 0.5, 1]; 
@@ -144,8 +143,7 @@ classdef Ship
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
         z(:, 1) = obj.z0; 
-        %tau = zeros(3, sim_steps); 
-    
+
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
             sum_b = zeros(6,1); 
@@ -188,92 +186,64 @@ classdef Ship
         end
 
         %% Plot
-
-        t_arr = 0:ts:T;
-        t_arr = t_arr(1:sim_steps); 
+        t_arr = 0:ts:T; t_arr = t_arr(1:sim_steps); 
         
         eta = z(1:3, :);
         eta_cbf = z_cbf(1:3, :);
 
-        color_v = [0 0.4470 0.7410];
-        color_u = [0.8500 0.3250 0.0980];
-        color_r = [0.9290 0.6940 0.1250];
-        color_cbf_traj = [0 0.7290 0.5000]; 
+        color_nom = [0 0.4470 0.7410];
+        color_cbf = [0 0.7290 0.5000]; 
 
-        subplot(1,2,1);
         % --- plot h 
+        subplot(1,2,1); 
 
-        plot(t_arr, h1, '-o')
+        plot(t_arr, h1)
         hold on
-        plot(t_arr, h2, '-o')
+        plot(t_arr, h2)
         hold on
-        plot(t_arr, h3, '-o')
+        plot(t_arr, h3)
         hold on
-        plot(t_arr, h4, '-o')
+        plot(t_arr, h4)
         hold on
-        plot(t_arr, ho1, '-o')
+        plot(t_arr, ho1)
         hold on
-        plot(t_arr, ho2, '-o')
+        plot(t_arr, ho2)
         hold off
         xlabel('Time')
         ylabel('')
         legend('h1', 'h2', 'h3', 'h4', 'ho1', 'ho2')
 
         % --- Plotting trajectory of eta ---
-
-        % Plot x vs y
         subplot(1,2,2);
-        plot(eta(1, :), eta(2, :),'Color',color_v)
+        plot(eta(1, :), eta(2, :),'Color',color_nom)
         hold on
-        plot(eta_cbf(1, :), eta_cbf(2, :),'--','Color',color_cbf_traj)  % stippled
+        plot(eta_cbf(1, :), eta_cbf(2, :),'Color',color_cbf)  
         hold off
 
-                
         % Draw vectors showing heading
-        
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);
         psi_safe = eta_cbf(3, 1:end-1);
 
         hold on
-        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi+pi/2), arrow_length*sin(psi+pi/2), 'Color', color_v, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe+pi/2), arrow_length*sin(psi_safe+pi/2), 'Color', color_cbf_traj, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi+pi/2), arrow_length*sin(psi+pi/2), 'Color', color_nom, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe+pi/2), arrow_length*sin(psi_safe+pi/2), 'Color', color_cbf, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         hold off
-        xlabel('x')
-        ylabel('y')
-        legend('eta', 'eta_safe')
-        
-        
+                
         % Draw starting and end points
         hold on
-        scatter(eta(1,1), eta(2,1), 'x', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_i')
-        scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f')
-        scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'Color', color_v, 'DisplayName', 'eta_f_cbf')
+        scatter(eta(1,1), eta(2,1), 'x', 'LineWidth', 2, 'DisplayName', 'eta start')
+        scatter(eta(1,end), eta(2,end), 'o', 'LineWidth', 2, 'DisplayName', 'eta finish')
+        scatter(eta_cbf(1,end), eta_cbf(2,end), 'o', 'LineWidth', 2, 'DisplayName', 'eta_cbf finish')
         hold off
-
-        % Draw contour of doc: TODO: replace with lines
         
-        hold on; % Enable the "hold on" mode to keep the existing plot
+        % Draw contour of the dock
+        l1x = [-5, -1]; l1y = [-3; -3]; 
+        l2x = [-1, -1]; l2y = [-3; 0]; 
+        l3x = [-1, 1]; l3y = [0; 0]; 
+        l4x = [1, 1]; l4y = [0; -3]; 
+        l5x = [1, 5]; l5y = [-3; -3]; 
         
-        % Draw lines on the plot
-
-
-        l1x = [-5, -1]; 
-        l1y = [-3; -3]; 
-
-        l2x = [-1, -1]; 
-        l2y = [-3; 0]; 
-
-        l3x = [-1, 1]; 
-        l3y = [0; 0]; 
-
-        l4x = [1, 1]; 
-        l4y = [0; -3]; 
-
-        l5x = [1, 5]; 
-        l5y = [-3; -3]; 
-        
-
         hold on
         plot(l1x,l1y, 'Color', [1 0.5 0]); 
         plot(l2x,l2y, 'Color', [1 0.5 0]);
@@ -282,9 +252,11 @@ classdef Ship
         plot(l5x,l5y, 'Color', [1 0.5 0]);
         hold off
 
-        legend('eta', 'eta_safe', 'eta_i', 'eta_f', 'eta_f_cbf', 'doc')
+        legend('eta', 'eta safe')
+        xlabel('x')
+        ylabel('y')
 
-        sgtitle('Tilte')
+        sgtitle('')
 
        
       end
