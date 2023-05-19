@@ -7,7 +7,14 @@ classdef ShipControll
         K
         Kr
 
-        cbf
+        cbf_ds0_1 %cbf for avioding dock in stage 0
+        cbf_ds1_1 %cbf for avioding dock in stage 1
+        cbf_ds1_2 %cbf for avioding dock in stage 1
+        cbf_ds1_3 %cbf for avioding dock in stage 1
+        cbf_o_1   %cbf for keeping the sys observable
+        cbf_o_2   %cbf for keeping the sys observable
+        cbfs
+
         dyn
  
    end
@@ -18,8 +25,27 @@ classdef ShipControll
          obj.dyn = ShipDynamics(); 
 
          %Controll barrier functions
-         obj.cbf = cbf(); 
-        
+         z = sym('z', [6 1]);
+
+         h(z) = [0 -1 0 0 0 0]*z -3; 
+         obj.cbf_ds0_1 = cbf(h, z); 
+
+         h(z) = [0 -1 0 0 0 0]*z;
+         obj.cbf_ds1_1 = cbf(h, z); 
+
+         h(z) = [1 0 0 0 0 0]*z + 1;
+         obj.cbf_ds1_2 = cbf(h, z);
+
+         h(z) = [-1 0 0 0 0 0]*z +1;
+         obj.cbf_ds1_3 = cbf(h, z);
+
+         h(z) = -z(1) +z(2)*atan(z(3) - pi/4);
+         obj.cbf_o_1 = cbf(h, z); 
+
+         h(z) = z(1) +z(2)*atan(-z(3) - pi/4);
+         obj.cbf_o_2 = cbf(h, z);
+
+         obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
  
          %Nominal controler with feedforward
          obj.Q_lqr = 10*eye(3); 
@@ -45,20 +71,20 @@ classdef ShipControll
         
         %Barrier for keeping the system from crashing into the dock
         if (stage == 0)
-            c(1) = -(obj.cbf.Lf2_h1_fh(z) + obj.cbf.LgLf_h1_fh(z)*tau + obj.cbf.K1_alpha*[obj.cbf.h1_fh(z); obj.cbf.Lf_h1_fh(z)]); 
+            c(1) = -(obj.cbf_ds0_1.Lf2_h(z) + obj.cbf_ds0_1.LgLf_h(z)*tau + obj.cbf_ds0_1.K_alpha*[obj.cbf_ds0_1.h(z); obj.cbf_ds0_1.Lf_h(z)]); 
             c(2) = 0; 
             c(3) = 0; 
         else
-            c(1) = -(obj.cbf.Lf2_h4_fh(z) + obj.cbf.LgLf_h4_fh(z)*tau + obj.cbf.K4_alpha*[obj.cbf.h4_fh(z); obj.cbf.Lf_h4_fh(z)]); 
-            c(2) = -(obj.cbf.Lf2_h2_fh(z) + obj.cbf.LgLf_h2_fh(z)*tau + obj.cbf.K2_alpha*[obj.cbf.h2_fh(z); obj.cbf.Lf_h2_fh(z)]);
-            c(3) = -(obj.cbf.Lf2_h3_fh(z) + obj.cbf.LgLf_h3_fh(z)*tau + obj.cbf.K3_alpha*[obj.cbf.h3_fh(z); obj.cbf.Lf_h3_fh(z)]);
+            c(1) = -(obj.cbf_ds1_1.Lf2_h(z) + obj.cbf_ds1_1.LgLf_h(z)*tau + obj.cbf_ds1_1.K_alpha*[obj.cbf_ds1_1.h(z); obj.cbf_ds1_1.Lf_h(z)]);
+            c(2) = -(obj.cbf_ds1_2.Lf2_h(z) + obj.cbf_ds1_2.LgLf_h(z)*tau + obj.cbf_ds1_2.K_alpha*[obj.cbf_ds1_2.h(z); obj.cbf_ds1_2.Lf_h(z)]);
+            c(1) = -(obj.cbf_ds1_3.Lf2_h(z) + obj.cbf_ds1_1.LgLf_h(z)*tau + obj.cbf_ds1_3.K_alpha*[obj.cbf_ds1_3.h(z); obj.cbf_ds1_3.Lf_h(z)]);
         end
 
         %Barrier for keeping the system observable
-        if (obj.cbf.ho1_fh(z) < obj.cbf.ho2_fh(z))
-            c(4) = -(obj.cbf.Lf2_ho1_fh(z) + obj.cbf.LgLf_ho1_fh(z)*tau + obj.cbf.Ko1_alpha*[obj.cbf.ho1_fh(z); obj.cbf.Lf_ho1_fh(z)]);
+        if (obj.cbf_o_1.h(z) < obj.cbf_o_2.h(z))
+            c(4) = -(obj.cbf_o_1.Lf2_h(z) + obj.cbf_o_1.LgLf_h(z)*tau + obj.cbf_o_1.K_alpha*[obj.cbf_o_1.h(z); obj.cbf_o_1.Lf_h(z)]);
         else
-            c(4) = -(obj.cbf.Lf2_ho2_fh(z) + obj.cbf.LgLf_ho2_fh(z)*tau + obj.cbf.Ko2_alpha*[obj.cbf.ho2_fh(z); obj.cbf.Lf_ho2_fh(z)]);
+            c(4) = -(obj.cbf_o_2.Lf2_h(z) + obj.cbf_o_2.LgLf_h(z)*tau + obj.cbf_o_2.K_alpha*[obj.cbf_o_2.h(z); obj.cbf_o_2.Lf_h(z)]);
         end
          ceq = 0;   
       end
@@ -154,12 +180,9 @@ classdef ShipControll
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
         z_cbf(:, 1) = z0;
-        h1 = zeros(1,sim_steps);
-        h2 = zeros(1,sim_steps);
-        h3 = zeros(1,sim_steps);
-        h4 = zeros(1,sim_steps);
-        ho1 = zeros(1,sim_steps);
-        ho2 = zeros(1,sim_steps);
+        for i = 1:numel(obj.cbfs)
+            h{i} = zeros(1, sim_steps);
+        end
 
 
         for k = 1:sim_steps 
@@ -171,12 +194,10 @@ classdef ShipControll
             end
     
             z_cbf(:, k+1) = z_cbf(:, k) + ts*sum_b; 
-            h1(k) = obj.cbf.h1_fh(z_cbf(:, k)); 
-            h2(k) = obj.cbf.h2_fh(z_cbf(:, k));  
-            h3(k) = obj.cbf.h3_fh(z_cbf(:, k)); 
-            h4(k) = obj.cbf.h4_fh(z_cbf(:, k));
-            ho1(k) = obj.cbf.ho1_fh(z_cbf(:, k));
-            ho2(k) = obj.cbf.ho2_fh(z_cbf(:, k));
+
+            for i = 1:numel(obj.cbfs)
+                h{i}(k) = obj.cbfs{i}.h(z_cbf(:, k));
+            end
 
         end
 
@@ -192,21 +213,14 @@ classdef ShipControll
         % --- plot control barrier functions 
         subplot(1,2,1); 
 
-        plot(t_arr, h1)
-        hold on
-        plot(t_arr, h2)
-        hold on
-        plot(t_arr, h3)
-        hold on
-        plot(t_arr, h4)
-        hold on
-        plot(t_arr, ho1)
-        hold on
-        plot(t_arr, ho2)
+        for i = 1:numel(obj.cbfs)
+            plot(t_arr, h{i});
+            hold on
+        end
         hold off
         xlabel('Time')
         ylabel('')
-        legend('h1', 'h2', 'h3', 'h4', 'ho1', 'ho2')
+        legend('cbf ds0 1', 'cbf ds1 1','cbf ds1 2', 'cbf ds1 3','cbf o 1', 'cbf o 2')
 
         % --- Plotting trajectory of eta ---
         subplot(1,2,2);

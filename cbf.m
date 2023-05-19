@@ -1,112 +1,31 @@
 classdef cbf
-    %consider creating an instances of cbf for each h, instead of defining
-    %each h in cbf. 
+
     properties
 
         dyn
 
-        h1_fh  
-        Lf_h1_fh  
-        Lf2_h1_fh  
-        LgLf_h1_fh 
+        %lie derivatives
+        h  
+        Lf_h 
+        Lf2_h  
+        LgLf_h 
 
-
-        h2_fh  
-        Lf_h2_fh  
-        Lf2_h2_fh  
-        LgLf_h2_fh 
-
-
-        h3_fh  
-        Lf_h3_fh  
-        Lf2_h3_fh  
-        LgLf_h3_fh 
-
-        h4_fh  
-        Lf_h4_fh  
-        Lf2_h4_fh  
-        LgLf_h4_fh 
-
-        ho1_fh  
-        Lf_ho1_fh  
-        Lf2_ho1_fh  
-        LgLf_ho1_fh 
-
-        ho2_fh  
-        Lf_ho2_fh  
-        Lf2_ho2_fh  
-        LgLf_ho2_fh 
-
-        K1_alpha 
-        K2_alpha
-        K3_alpha
-        K4_alpha
-        Ko1_alpha
-        Ko2_alpha
-
-
+        K_alpha 
     end
-
-
 
     methods(Access = public)
 
-        function obj = cbf()
+        function obj = cbf(h, z)
 
             obj.dyn = ShipDynamics(); 
 
-            z = sym('z', [6 1]);
+            fhs = obj.create_fhs_for_2order_hi(h, z);
+            obj.h= fhs{1}; 
+            obj.Lf_h = fhs{2}; 
+            obj.Lf2_h= fhs{3}; 
+            obj.LgLf_h= fhs{4}; 
 
-            h1(z) = [0 -1 0 0 0 0]*z -3; 
-            fhs = obj.create_fhs_for_2order_hi(h1, z); 
-            obj.h1_fh = fhs{1}; 
-            obj.Lf_h1_fh = fhs{2}; 
-            obj.Lf2_h1_fh = fhs{3}; 
-            obj.LgLf_h1_fh = fhs{4}; 
-
-
-            h2(z) = [1 0 0 0 0 0]*z + 1;
-            fhs = obj.create_fhs_for_2order_hi(h2, z); 
-            obj.h2_fh = fhs{1}; 
-            obj.Lf_h2_fh = fhs{2}; 
-            obj.Lf2_h2_fh = fhs{3}; 
-            obj.LgLf_h2_fh = fhs{4}; 
-
-            h3(z) = [-1 0 0 0 0 0]*z +1; 
-            fhs = obj.create_fhs_for_2order_hi(h3, z); 
-            obj.h3_fh = fhs{1}; 
-            obj.Lf_h3_fh = fhs{2}; 
-            obj.Lf2_h3_fh = fhs{3}; 
-            obj.LgLf_h3_fh = fhs{4}; 
-
-            h4(z) = [0 -1 0 0 0 0]*z;
-            fhs = obj.create_fhs_for_2order_hi(h4, z); 
-            obj.h4_fh = fhs{1}; 
-            obj.Lf_h4_fh = fhs{2}; 
-            obj.Lf2_h4_fh = fhs{3}; 
-            obj.LgLf_h4_fh = fhs{4};
-
-            ho1(z) = -z(1) +z(2)*atan(z(3) - pi/4); 
-            fhs = obj.create_fhs_for_2order_hi(ho1, z); 
-            obj.ho1_fh = fhs{1}; 
-            obj.Lf_ho1_fh = fhs{2}; 
-            obj.Lf2_ho1_fh = fhs{3}; 
-            obj.LgLf_ho1_fh = fhs{4};
-
-            ho2(z) = z(1) +z(2)*atan(-z(3) - pi/4); 
-            fhs = obj.create_fhs_for_2order_hi(ho2, z); 
-            obj.ho2_fh = fhs{1}; 
-            obj.Lf_ho2_fh = fhs{2}; 
-            obj.Lf2_ho2_fh = fhs{3}; 
-            obj.LgLf_ho2_fh = fhs{4};
-
-            obj.K1_alpha = [1 2]; 
-            obj.K2_alpha = [1 2];
-            obj.K3_alpha = [1 2];
-            obj.K4_alpha = [1 2];
-            obj.Ko1_alpha = [1 2];
-            obj.Ko2_alpha = [1 2];
-
+            obj.K_alpha = [1 2]; 
    
         end
 
