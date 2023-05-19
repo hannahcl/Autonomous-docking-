@@ -67,6 +67,14 @@ classdef ShipControll
         tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
+      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
+        f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
+        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta, stage);
+
+        options = optimoptions(@fmincon,'Display','none');
+        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
+      end
+
       function [c, ceq] = compute_constraints(obj,tau, nu, eta, stage)
         z = [eta; nu]; 
         c = zeros(4, 1); 
@@ -89,16 +97,6 @@ classdef ShipControll
             c(4) = -(obj.cbf_o_2.Lf2_h(z) + obj.cbf_o_2.LgLf_h(z)*tau + obj.cbf_o_2.K_alpha*[obj.cbf_o_2.h(z); obj.cbf_o_2.Lf_h(z)]);
         end
          ceq = 0;   
-      end
-
-      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
-
-        f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
-        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta, stage);
-
-        options = optimoptions(@fmincon,'Display','none');
-        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
-
       end
 
       function eta_ref = give_eta_ref(obj, stage)
