@@ -4,7 +4,6 @@ classdef cbf
 
         dyn
 
-        %lie derivatives
         h  
         Lf_h 
         Lf2_h  
@@ -15,11 +14,11 @@ classdef cbf
 
     methods(Access = public)
 
-        function obj = cbf(h, z)
+        function obj = cbf(f, g, h, z)
 
             obj.dyn = ShipDynamics(); 
 
-            fhs = obj.create_fhs_for_2order_hi(h, z);
+            fhs = obj.create_fhs_for_2order_hi(f, g, h, z);
             obj.h= fhs{1}; 
             obj.Lf_h = fhs{2}; 
             obj.Lf2_h= fhs{3}; 
@@ -29,21 +28,7 @@ classdef cbf
    
         end
 
-        function fhs = create_fhs_for_2order_hi(obj, h, z)
-
-            %define f
-            f(z) = [
-                cos(z(3))*z(4) - sin(z(3))*z(5);
-                sin(z(3))*z(4) + cos(z(3))*z(5); 
-                z(6); 
-                obj.dyn.A_nu(1,1)*z(4) + obj.dyn.A_nu(1,2)*z(5) + obj.dyn.A_nu(1,3)*z(6); 
-                obj.dyn.A_nu(2,1)*z(4) + obj.dyn.A_nu(2,2)*z(5) + obj.dyn.A_nu(2,3)*z(6); 
-                obj.dyn.A_nu(3,1)*z(4) + obj.dyn.A_nu(3,2)*z(5) + obj.dyn.A_nu(3,3)*z(6)
-            ]; 
-
-            %define g
-            g= zeros(6,3); 
-            g(4:6, 1:3) = obj.dyn.B_nu; 
+        function fhs = create_fhs_for_2order_hi(obj, f, g, h, z)
 
             %compute lie derivatives
             Lf_h = simplify((gradient(h,z).')*f); 

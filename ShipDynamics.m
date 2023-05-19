@@ -50,7 +50,10 @@ classdef ShipDynamics
         N_lin
         A_nu
         B_nu
-        C_nu; 
+        C_nu
+
+        f_symbolic
+        g_symbolic
 
         tau_wind
         tau_wave
@@ -108,18 +111,28 @@ classdef ShipDynamics
          obj.A_nu = -obj.M\obj.N_lin; 
          obj.B_nu = inv(obj.M); 
          obj.C_nu = eye(3); 
+
+         % symbolic model 
+         % z' = f(z) + g(z)*tau, where z = [eta; nu]
+         z = sym('z', [6 1]);
+
+         obj.f_symbolic= [
+                 obj.compute_R(z(3))*z(4:6); 
+                 obj.A_nu*z(4:6)]; 
+
+         obj.g_symbolic = zeros(6,3); g(4:6, 1:3) = obj.B_nu; 
          
        end
 
-     function R = compute_R(obj, eta)
-        R = [cos(eta(3)) -sin(eta(3)) 0; 
-             sin(eta(3)) cos(eta(3)) 0; 
+     function R = compute_R(obj, psi)
+        R = [cos( psi) -sin( psi) 0; 
+             sin( psi) cos( psi) 0; 
              0 0 1];
       end
 
 
       function eta_dot = model_eta(obj, eta, nu)
-         R = obj.compute_R(eta); 
+         R = obj.compute_R(eta(3)); 
          eta_dot = R*nu; 
       end
 
