@@ -15,8 +15,11 @@ classdef ShipControll
         cbf_o_2   %cbf for keeping the sys observable
 
         cbfs
-
         dyn
+
+        eta_measurement_variance
+        nu_measurement_variance
+
  
    end
    methods(Access = public)
@@ -54,6 +57,9 @@ classdef ShipControll
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.dyn.A_nu, obj.dyn.B_nu, obj.Q_lqr, obj.R_lqr); 
          obj.Kr = obj.dyn.B_nu*(inv(obj.dyn.C_nu/(obj.dyn.B_nu*obj.K-obj.dyn.A_nu)*obj.dyn.B_nu)); 
+
+         obj.eta_measurement_variance = zeros(3,1); 
+         obj.nu_measurement_variance = zeros(3,1);
 
       end
 
@@ -112,18 +118,21 @@ classdef ShipControll
       function z_dot = closed_loop_model_z_nomiell(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
+          eta_m = eta + randn(1)*obj.eta_measurement_variance; 
+          nu_m = nu + randn(1)*obj.nu_measurement_variance;  
 
-          if (abs(eta(1)) > 1)
+          if (abs(eta_m(1)) > 1)
             stage = 0;  %Converge towards dock
           else
             stage = 1;  %Drive into berth
           end
 
           eta_ref = obj.give_eta_ref(stage); 
-          nu_ref = obj.ctrl_eta(eta, eta_ref); 
-          tau = obj.ctrl_nu_nominell(nu, nu_ref); 
+          nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
+          tau = obj.ctrl_nu_nominell(nu_m, nu_ref); 
 
-          nu_dot = obj.dyn.model_nu(nu, tau); 
+          nu_dot = obj.dyn.model_nu(nu, tau);
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -131,19 +140,22 @@ classdef ShipControll
       function z_dot = closed_loop_model_z_cbf(obj, z)
           eta = z(1:3); 
           nu = z(4:6); 
+          eta_m = eta + randn(1)*obj.eta_measurement_variance; 
+          nu_m = nu + randn(1)*obj.nu_measurement_variance; 
 
-          if (abs(eta(1)) > 1)
+          if (abs(eta_m(1)) > 1)
             stage = 0;  %Converge towards dock
           else
             stage = 1;  %Drive into berth
           end
 
           eta_ref = obj.give_eta_ref(stage); 
-          nu_ref = obj.ctrl_eta(eta, eta_ref); 
-          tau_nominell = obj.ctrl_nu_nominell(nu, nu_ref); 
-          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu, eta, stage); 
+          nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
+          tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
+          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, stage); 
 
           nu_dot = obj.dyn.model_nu(nu, tau_safe); 
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -151,6 +163,9 @@ classdef ShipControll
    end
 
   methods
+      function measurement = add_noise(obj, z)
+        measurement = z + randn(1)*[obj.eta_measurement_variance; obj.nu_measurement_variance];
+      end
 
       function simRK4(obj, z0, T, ts)
 
@@ -173,7 +188,7 @@ classdef ShipControll
                 sum_b  = sum_b + b(s)*store(:,s+1); 
             end
     
-            z(:, k+1) = z(:, k) + ts*sum_b; 
+            z(:, k+1) = z(:, k) + ts*sum_b;
 
         end
 

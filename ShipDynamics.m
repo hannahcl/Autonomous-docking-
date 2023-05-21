@@ -59,6 +59,9 @@ classdef ShipDynamics
         tau_wave
         nu_current
 
+        eta_model_distrubance
+        nu_model_distrubance
+
 
    end
    methods(Access = public)
@@ -88,6 +91,9 @@ classdef ShipDynamics
          obj.tau_wave = zeros(3,1); 
          obj.tau_wind = zeros(3,1); 
          obj.nu_current = zeros(3,1);
+
+         obj.eta_model_distrubance = zeros(3,1); 
+         obj.nu_model_distrubance = zeros(3,1); 
 
          % linear model
 
@@ -133,7 +139,7 @@ classdef ShipDynamics
 
       function eta_dot = model_eta(obj, eta, nu)
          R = obj.compute_R(eta(3)); 
-         eta_dot = R*nu; 
+         eta_dot = R*nu + randn(1)*obj.eta_model_distrubance; 
       end
 
       function nu_dot = model_nu(obj, nu, tau)
@@ -142,11 +148,11 @@ classdef ShipDynamics
         C_RB = obj.compute_C_RB(nu);
         N = obj.compute_N(nu_relative); 
 
-        nu_dot = -obj.M\(C_RB*nu + N*nu_relative) + obj.M\(tau + obj.tau_wave + obj.tau_wind);  
+        nu_dot = -obj.M\(C_RB*nu + N*nu_relative) + obj.M\(tau + obj.tau_wave + obj.tau_wind) + randn(1)*obj.nu_model_distrubance;  
       end
 
       function nu_dot = linear_model_nu(obj, nu, tau)  
-        nu_dot = -obj.M\obj.N_lin*nu + obj.M\(tau + obj.tau_wave + obj.tau_wind);
+        nu_dot = -obj.M\obj.N_lin*nu + obj.M\(tau + obj.tau_wave + obj.tau_wind) + randn(1)*obj.nu_model_distrubance;
       end
 
    end
