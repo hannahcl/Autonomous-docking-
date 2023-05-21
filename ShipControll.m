@@ -81,20 +81,20 @@ classdef ShipControll
         
         %Barrier for keeping the system from crashing into the dock
         if (stage == 0)
-            c(1) = -(obj.cbf_ds0_1.Lf2_h(z) + obj.cbf_ds0_1.LgLf_h(z)*tau + obj.cbf_ds0_1.K_alpha*[obj.cbf_ds0_1.h(z); obj.cbf_ds0_1.Lf_h(z)]); 
+            c(1) = -obj.cbf_ds0_1.compute_bound(z, tau); 
             c(2) = 0; 
             c(3) = 0; 
         else
-            c(1) = -(obj.cbf_ds1_1.Lf2_h(z) + obj.cbf_ds1_1.LgLf_h(z)*tau + obj.cbf_ds1_1.K_alpha*[obj.cbf_ds1_1.h(z); obj.cbf_ds1_1.Lf_h(z)]);
-            c(2) = -(obj.cbf_ds1_2.Lf2_h(z) + obj.cbf_ds1_2.LgLf_h(z)*tau + obj.cbf_ds1_2.K_alpha*[obj.cbf_ds1_2.h(z); obj.cbf_ds1_2.Lf_h(z)]);
-            c(1) = -(obj.cbf_ds1_3.Lf2_h(z) + obj.cbf_ds1_1.LgLf_h(z)*tau + obj.cbf_ds1_3.K_alpha*[obj.cbf_ds1_3.h(z); obj.cbf_ds1_3.Lf_h(z)]);
+            c(1) = -obj.cbf_ds1_1.compute_bound(z, tau);
+            c(2) = -obj.cbf_ds1_2.compute_bound(z, tau);
+            c(3) = -obj.cbf_ds1_3.compute_bound(z, tau);
         end
 
         %Barrier for keeping the system observable
         if (obj.cbf_o_1.h(z) < obj.cbf_o_2.h(z))
-            c(4) = -(obj.cbf_o_1.Lf2_h(z) + obj.cbf_o_1.LgLf_h(z)*tau + obj.cbf_o_1.K_alpha*[obj.cbf_o_1.h(z); obj.cbf_o_1.Lf_h(z)]);
+            c(4) =  -obj.cbf_o_1.compute_bound(z, tau);
         else
-            c(4) = -(obj.cbf_o_2.Lf2_h(z) + obj.cbf_o_2.LgLf_h(z)*tau + obj.cbf_o_2.K_alpha*[obj.cbf_o_2.h(z); obj.cbf_o_2.Lf_h(z)]);
+            c(4) = -obj.cbf_o_2.compute_bound(z, tau);
         end
          ceq = 0;   
       end

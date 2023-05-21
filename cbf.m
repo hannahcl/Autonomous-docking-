@@ -43,6 +43,17 @@ classdef cbf
             LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
 
             fhs = {h; Lf_h; Lf2_h; LgLf_h};
+
+            res = obj.check_initial_conditions(); 
+        end
+
+        function bound = compute_bound(obj, z, tau)
+            bound = obj.Lf2_h(z) + obj.LgLf_h(z)*tau + obj.K_alpha*[obj.h(z); obj.Lf_h(z)]; 
+        end
+
+        function result = check_initial_conditions(obj)
+            %% TODO: fill inn
+            result = true; 
         end
 
     end
