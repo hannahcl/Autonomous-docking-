@@ -116,19 +116,34 @@ classdef ShipDynamics
 
          obj.A_nu = -obj.M\obj.N_lin; 
          obj.B_nu = inv(obj.M); 
-         obj.C_nu = eye(3); 
+         obj.C_nu = eye(3);
 
-         % symbolic model 
-         % z' = f(z) + g(z)*tau, where z = [eta; nu]
-         z = sym('z', [6 1]);
 
-         obj.f_symbolic= [
-                 obj.compute_R(z(3))*z(4:6); 
-                 obj.A_nu*z(4:6)]; 
-
-         obj.g_symbolic = zeros(6,3); obj.g_symbolic(4:6, 1:3) = obj.B_nu; 
+         fhs = obj.compute_f_g_symbolic();
+         obj.f_symbolic = fhs{1}; 
+         obj.g_symbolic = fhs{2}; 
          
        end
+
+     function fhs = compute_f_g_symbolic(obj)
+        % z' = f(z) + g(z)*tau, where z = [eta; nu]
+        z = sym('z', [6 1]);
+        nu = z(4:6); 
+
+        nu_relative = nu - obj.nu_current; 
+        C_RB = obj.compute_C_RB(nu);
+        N = obj.compute_N(nu_relative);
+
+        f = [
+            obj.compute_R(z(3))*z(4:6); 
+            -obj.M\(C_RB*nu + N*nu_relative)]; 
+        
+        g = zeros(6,3); 
+        g(4:6, 1:3) = obj.B_nu; 
+
+        fhs = {f; g};
+
+     end
 
      function R = compute_R(obj, psi)
         R = [cos( psi) -sin( psi) 0; 

@@ -131,8 +131,8 @@ classdef ShipControll
           nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu_m, nu_ref); 
 
-          %nu_dot = obj.dyn.model_nu(nu, tau);
-          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
+          nu_dot = obj.dyn.model_nu(nu, tau);
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -154,8 +154,8 @@ classdef ShipControll
           tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, stage); 
 
-          %nu_dot = obj.dyn.model_nu(nu, tau_safe); 
-          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
+          nu_dot = obj.dyn.model_nu(nu, tau_safe); 
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
