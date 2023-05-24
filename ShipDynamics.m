@@ -126,7 +126,7 @@ classdef ShipDynamics
                  obj.compute_R(z(3))*z(4:6); 
                  obj.A_nu*z(4:6)]; 
 
-         obj.g_symbolic = zeros(6,3); g(4:6, 1:3) = obj.B_nu; 
+         obj.g_symbolic = zeros(6,3); obj.g_symbolic(4:6, 1:3) = obj.B_nu; 
          
        end
 

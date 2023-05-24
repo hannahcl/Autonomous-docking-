@@ -110,7 +110,7 @@ classdef ShipControll
             eta_ref = [0; -3.2; 0]; 
           else
             eta_ref = [0; 0; 0]; 
-          end
+          end 
       end
 
       %% Closed loop models
@@ -131,8 +131,8 @@ classdef ShipControll
           nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu_m, nu_ref); 
 
-          nu_dot = obj.dyn.model_nu(nu, tau);
-          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
+          %nu_dot = obj.dyn.model_nu(nu, tau);
+          nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -154,8 +154,8 @@ classdef ShipControll
           tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
           tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, stage); 
 
-          nu_dot = obj.dyn.model_nu(nu, tau_safe); 
-          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
+          %nu_dot = obj.dyn.model_nu(nu, tau_safe); 
+          nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -248,10 +248,15 @@ classdef ShipControll
         arrow_length = 0.2;  
         psi = eta(3,1:end-1);
         psi_safe = eta_cbf(3, 1:end-1);
-
+        
         hold on
-        quiver(eta(1,1:end-1), eta(2,1:end-1), arrow_length*cos(psi+pi/2), arrow_length*sin(psi+pi/2), 'Color', color_nom, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(eta_cbf(1,1:end-1), eta_cbf(2,1:end-1), arrow_length*cos(psi_safe+pi/2), arrow_length*sin(psi_safe+pi/2), 'Color', color_cbf, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        
+        step = 10;
+        indices = 1:step:length(eta)-1;
+        
+        quiver(eta(1,indices), eta(2,indices), arrow_length*cos(psi(indices)+pi/2), arrow_length*sin(psi(indices)+pi/2), 'Color', color_nom, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,indices), eta_cbf(2,indices), arrow_length*cos(psi_safe(indices)+pi/2), arrow_length*sin(psi_safe(indices)+pi/2), 'Color', color_cbf, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        
         hold off
                 
         % Draw starting and end points
