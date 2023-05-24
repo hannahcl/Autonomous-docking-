@@ -43,17 +43,41 @@ classdef cbf
             LgLf_h = matlabFunction(LgLf_h, 'Vars', {z}); 
 
             fhs = {h; Lf_h; Lf2_h; LgLf_h};
-
-            res = obj.check_initial_conditions(); 
         end
 
         function bound = compute_bound(obj, z, tau)
             bound = obj.Lf2_h(z) + obj.LgLf_h(z)*tau + obj.K_alpha*[obj.h(z); obj.Lf_h(z)]; 
         end
 
-        function result = check_initial_conditions(obj)
-            %% TODO: fill inn
-            result = true; 
+        function cbf_valid = check_initial_conditions(obj, z0, tau0)
+            cbf_valid = true; 
+
+            F = [0 1; 0 0]; 
+            G = [0; 1];
+            A = F - G*obj.K_alpha; 
+            lambda = eig(A);
+
+            if ~isreal(lambda(1))
+                cbf_valid = false; 
+            end
+
+            if ~isreal(lambda(2))
+                cbf_valid = false; 
+            end
+
+            nu_0 = obj.h(z0); 
+            nu_0_dot = obj.Lf_h(z0); 
+            nu_1 = nu_0_dot - lambda(1)*nu_0; 
+            nu_1_dot = obj.Lf2_h(z0) + obj.LgLf_h(z0)*tau0 -lambda(1)*obj.Lf_h(z0); 
+
+            if ~(-lambda(1) >= (nu_0_dot/nu_0))
+                cbf_valid = false; 
+            end
+
+            if ~(-lambda(2) >= (nu_1_dot/nu_1))
+                cbf_valid = false; 
+            end
+
         end
 
     end

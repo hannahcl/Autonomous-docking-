@@ -17,13 +17,20 @@ classdef ShipControll
         cbfs
         dyn
 
+        z0
+        tau0
+
         eta_measurement_variance
         nu_measurement_variance
 
  
    end
    methods(Access = public)
-      function obj = ShipControll()
+      function obj = ShipControll(z0, tau0)
+
+         %Initial conditions
+         obj.z0 = z0; 
+         obj.tau0 = tau0; 
 
          %Dynimacs of the ship
          obj.dyn = ShipDynamics(); 
@@ -51,6 +58,10 @@ classdef ShipControll
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
          obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
+         for i = 1:numel(obj.cbfs)
+            cbf_valid = obj.cbfs{i}.check_initial_conditions(obj.z0, obj.tau0);
+            assert(cbf_valid, 'CBF not valid. Must change initial condiftions or values of K_alpha.')
+         end
  
          %Nominal controler with feedforward
          obj.Q_lqr = 10*eye(3); 
@@ -167,7 +178,7 @@ classdef ShipControll
         measurement = z + randn(1)*[obj.eta_measurement_variance; obj.nu_measurement_variance];
       end
 
-      function simRK4(obj, z0, T, ts)
+      function simRK4(obj, T, ts)
 
         %Butcher tableau
         a = [0, 0.5, 0.5, 1]; 
@@ -178,7 +189,7 @@ classdef ShipControll
     
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
-        z(:, 1) = z0; 
+        z(:, 1) = obj.z0; 
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -194,7 +205,7 @@ classdef ShipControll
 
         %% Run simulation with cbf
         z_cbf = zeros(6, sim_steps);
-        z_cbf(:, 1) = z0;
+        z_cbf(:, 1) = obj.z0;
         for i = 1:numel(obj.cbfs)
             h{i} = zeros(1, sim_steps);
         end
