@@ -57,18 +57,22 @@ classdef cbf
             A = F - G*obj.K_alpha; 
             lambda = eig(A);
 
-            if ~isreal(lambda(1))
+            if ~(isreal(lambda(1)) && (lambda(1) < 0))
                 cbf_valid = false; 
             end
 
-            if ~isreal(lambda(2))
+            if ~(isreal(lambda(2)) && (lambda(2) < 0))
                 cbf_valid = false; 
             end
 
             nu_0 = obj.h(z0); 
             nu_0_dot = obj.Lf_h(z0); 
             nu_1 = nu_0_dot - lambda(1)*nu_0; 
-            nu_1_dot = obj.Lf2_h(z0) + obj.LgLf_h(z0)*tau0 -lambda(1)*obj.Lf_h(z0); 
+            nu_1_dot = obj.Lf2_h(z0) + obj.LgLf_h(z0)*tau0 -lambda(1)*obj.Lf_h(z0);
+
+            if ~(nu_0 >= 0)
+                cbf_valid = false; 
+            end
 
             if ~(-lambda(1) >= (nu_0_dot/nu_0))
                 cbf_valid = false; 
