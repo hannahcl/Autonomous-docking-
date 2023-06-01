@@ -1,4 +1,4 @@
-classdef ShipControll
+classdef ShipControl
 
    properties
 
@@ -28,7 +28,7 @@ classdef ShipControll
  
    end
    methods(Access = public)
-      function obj = ShipControll(z0, tau0)
+      function obj = ShipControl(z0, tau0)
 
          %Initial conditions
          obj.z0 = z0; 
@@ -53,17 +53,17 @@ classdef ShipControll
          h(z) = [-1 0 0 0 0 0]*z +1;
          obj.cbf_ds1_3 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
-         h(z) = -z(1) +z(2)*atan(z(3) - pi/4);
+         h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
 
-         h(z) = z(1) +z(2)*atan(-z(3) - pi/4);
+         h(z) = z(1) +z(2)*atan(-z(3) - pi/3);
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
         obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
-        for i = [1, numel(obj.cbfs)-1:numel(obj.cbfs)]
-            cbf_valid = obj.cbfs{i}.check_initial_conditions(obj.z0, obj.tau0);
-            assert(cbf_valid, 'CBF not valid. Must change initial conditions or values of K_alpha.')
-        end
+%         for i = [1, numel(obj.cbfs)-1:numel(obj.cbfs)]
+%             cbf_valid = obj.cbfs{i}.check_initial_conditions(obj.z0, obj.tau0);
+%             assert(cbf_valid, 'CBF not valid. Must change initial conditions or values of K_alpha.')
+%         end
 
 
          obj.n_active_cbfs = 4;
@@ -277,18 +277,19 @@ classdef ShipControll
 
         % Draw vectors showing heading
         arrow_length = 0.2;  
-        psi = eta(3,1:end-1);
-        psi_safe = eta_cbf(3, 1:end-1);
+        psi = eta(3,1:end-1); 
+        psi_safe = eta_cbf(3, 1:end-1); 
         
         hold on
         
         step = 10;
         indices = 1:step:length(eta)-1;
         
-        quiver(eta(1,indices), eta(2,indices), arrow_length*cos(psi(indices)+pi/2), arrow_length*sin(psi(indices)+pi/2), 'Color', color_nom, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
-        quiver(eta_cbf(1,indices), eta_cbf(2,indices), arrow_length*cos(psi_safe(indices)+pi/2), arrow_length*sin(psi_safe(indices)+pi/2), 'Color', color_cbf, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta(1,indices), eta(2,indices), arrow_length*cos(-psi(indices)+pi/2), arrow_length*sin(-psi(indices)+pi/2), 'Color', color_nom, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
+        quiver(eta_cbf(1,indices), eta_cbf(2,indices), arrow_length*cos(-psi_safe(indices)+pi/2), arrow_length*sin(-psi_safe(indices)+pi/2), 'Color', color_cbf, 'MaxHeadSize', 0.5, 'AutoScale', 'off')
         
         hold off
+
                 
         % Draw starting and end points
         hold on

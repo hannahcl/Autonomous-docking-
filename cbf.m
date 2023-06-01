@@ -67,7 +67,7 @@ classdef cbf
                 cbf_valid = false; 
             end
 
-            nu_0 = obj.h(z0);  
+            nu_0 = obj.h(z0)  
             nu_0_dot = obj.Lf_h(z0); 
             nu_1 = nu_0_dot - lambda(1)*nu_0; 
             nu_1_dot = obj.Lf2_h(z0) + obj.LgLf_h(z0)*tau0 -lambda(1)*obj.Lf_h(z0);
