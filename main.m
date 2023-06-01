@@ -1,11 +1,11 @@
 
 %simulation configuration
 nu0 = [0; 0; 0];
-eta0 = [0; -3.1; pi/8]; 
+eta0 = [2; -5; -pi/8]; 
 z0 = [eta0; nu0];
 tau0 = zeros(3,1); 
 
-sim_time = 10; 
+sim_time = 100; 
 sim_timestep = 0.1; 
 
 ship = ShipControll(z0, tau0);

@@ -13,6 +13,8 @@ classdef ShipControll
         cbf_ds1_3 %cbf for avioding dock in stage 1
         cbf_o_1   %cbf for keeping the sys observable
         cbf_o_2   %cbf for keeping the sys observable
+        n_active_cbfs
+        n_ctrl_inputs
 
         cbfs
         dyn
@@ -57,11 +59,15 @@ classdef ShipControll
          h(z) = z(1) +z(2)*atan(-z(3) - pi/4);
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
-         obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
-         for i = 1:numel(obj.cbfs)
+        obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
+        for i = [1, numel(obj.cbfs)-1:numel(obj.cbfs)]
             cbf_valid = obj.cbfs{i}.check_initial_conditions(obj.z0, obj.tau0);
-            assert(cbf_valid, 'CBF not valid. Must change initial condiftions or values of K_alpha.')
-         end
+            assert(cbf_valid, 'CBF not valid. Must change initial conditions or values of K_alpha.')
+        end
+
+
+         obj.n_active_cbfs = 4;
+         obj.n_ctrl_inputs = 3; 
  
          %Nominal controler with feedforward
          obj.Q_lqr = 10*eye(3); 
@@ -85,35 +91,49 @@ classdef ShipControll
       end
 
       function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
-        f = @(tau_safe) norm(tau_safe - tau_nominell)^2;
-        nonlcon = @(tau_safe) obj.compute_constraints(tau_safe, nu, eta, stage);
+        %Create matricies for quadprog(H,f,lin_con_A, lin_con_b).
+        H = 2*eye(3); 
+        f = -tau_nominell; 
 
-        options = optimoptions(@fmincon,'Display','none');
-        tau_safe = fmincon(f, tau_nominell, [], [], [], [], [], [], nonlcon, options); 
-      end
+        lin_con_A = zeros(obj.n_active_cbfs, obj.n_ctrl_inputs); 
+        lin_con_b = zeros(obj.n_active_cbfs, 1); 
 
-      function [c, ceq] = compute_constraints(obj,tau, nu, eta, stage)
         z = [eta; nu]; 
-        c = zeros(4, 1); 
-        
-        %Barrier for keeping the system from crashing into the dock
+
+
         if (stage == 0)
-            c(1) = -obj.cbf_ds0_1.compute_bound(z, tau); 
-            c(2) = 0; 
-            c(3) = 0; 
+            lin_con_s01 = obj.cbf_ds0_1.compute_linear_constraints(z); 
+            lin_con_A(1,:) = lin_con_s01(1:3); 
+            lin_con_b(1) = lin_con_s01(4); 
         else
-            c(1) = -obj.cbf_ds1_1.compute_bound(z, tau);
-            c(2) = -obj.cbf_ds1_2.compute_bound(z, tau);
-            c(3) = -obj.cbf_ds1_3.compute_bound(z, tau);
+            lin_con_s11 = obj.cbf_ds1_1.compute_linear_constraints(z); 
+            lin_con_A(1,:) = lin_con_s11(1:3); 
+            lin_con_b(1) = lin_con_s11(4);
+
+            lin_con_s12 = obj.cbf_ds1_2.compute_linear_constraints(z); 
+            lin_con_A(2,:) = lin_con_s12(1:3); 
+            lin_con_b(2) = lin_con_s12(4);
+
+            lin_con_s13 = obj.cbf_ds1_3.compute_linear_constraints(z); 
+            lin_con_A(3,:) = lin_con_s13(1:3); 
+            lin_con_b(3) = lin_con_s13(4);
         end
 
         %Barrier for keeping the system observable
         if (obj.cbf_o_1.h(z) < obj.cbf_o_2.h(z))
-            c(4) =  -obj.cbf_o_1.compute_bound(z, tau);
+            lin_con_o1 = obj.cbf_o_1.compute_linear_constraints(z); 
+            lin_con_A(4,:) = lin_con_o1(1:3); 
+            lin_con_b(4) = lin_con_o1(4);
+
         else
-            c(4) = -obj.cbf_o_2.compute_bound(z, tau);
+            lin_con_o2 = obj.cbf_o_2.compute_linear_constraints(z); 
+            lin_con_A(4,:) = lin_con_o2(1:3); 
+            lin_con_b(4) = lin_con_o2(4);
         end
-         ceq = 0;   
+
+        options = optimoptions('quadprog', 'Display', 'off');
+        tau_safe = quadprog(H,f,lin_con_A, lin_con_b, [], [], [], [], tau_nominell, options); 
+
       end
 
       function eta_ref = give_eta_ref(obj, stage)

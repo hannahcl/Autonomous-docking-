@@ -45,8 +45,10 @@ classdef cbf
             fhs = {h; Lf_h; Lf2_h; LgLf_h};
         end
 
-        function bound = compute_bound(obj, z, tau)
-            bound = obj.Lf2_h(z) + obj.LgLf_h(z)*tau + obj.K_alpha*[obj.h(z); obj.Lf_h(z)]; 
+        function lin_con = compute_linear_constraints(obj, z)
+            A = -obj.LgLf_h(z); 
+            b = obj.Lf2_h(z) + obj.K_alpha*[obj.h(z); obj.Lf_h(z)]; 
+            lin_con = [A, b];  
         end
 
         function cbf_valid = check_initial_conditions(obj, z0, tau0)
@@ -55,7 +57,7 @@ classdef cbf
             F = [0 1; 0 0]; 
             G = [0; 1];
             A = F - G*obj.K_alpha; 
-            lambda = eig(A);
+            lambda = eig(A); 
 
             if ~(isreal(lambda(1)) && (lambda(1) < 0))
                 cbf_valid = false; 
@@ -65,7 +67,7 @@ classdef cbf
                 cbf_valid = false; 
             end
 
-            nu_0 = obj.h(z0); 
+            nu_0 = obj.h(z0);  
             nu_0_dot = obj.Lf_h(z0); 
             nu_1 = nu_0_dot - lambda(1)*nu_0; 
             nu_1_dot = obj.Lf2_h(z0) + obj.LgLf_h(z0)*tau0 -lambda(1)*obj.Lf_h(z0);
