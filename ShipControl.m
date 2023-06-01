@@ -77,7 +77,7 @@ classdef ShipControl < handle
          obj.n_ctrl_inputs = 3; 
  
          %Nominal controler with feedforward
-         obj.Q_lqr = 10*eye(3); 
+         obj.Q_lqr = 10*eye(3);   
          obj.R_lqr= eye(3); 
          obj.K = lqr(obj.dyn.A_nu, obj.dyn.B_nu, obj.Q_lqr, obj.R_lqr); 
          obj.Kr = obj.dyn.B_nu*(inv(obj.dyn.C_nu/(obj.dyn.B_nu*obj.K-obj.dyn.A_nu)*obj.dyn.B_nu)); 
@@ -174,7 +174,7 @@ classdef ShipControl < handle
       end
 
       function s = update_stage(obj, eta)
-          if (abs(eta(1) + 3*sqrt(obj.eta_measurement_variance(1,1))) > obj.dock_width)
+          if (abs(eta(1) + obj.eta_measurement_variance(1,1)) > obj.dock_width)
             s = 0;  %Converge towards dock
           else
             s = 1;  %Drive into berth
@@ -199,6 +199,7 @@ classdef ShipControl < handle
           tau = obj.ctrl_z_nominell(z_measured); 
 
           nu_dot = obj.dyn.model_nu(nu, tau);
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot]; 
       end
@@ -226,7 +227,8 @@ classdef ShipControl < handle
               end   
           end
 
-          nu_dot = obj.dyn.model_nu(nu, tau_safe); 
+          nu_dot = obj.dyn.model_nu(nu, tau_safe);
+          %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); 
           eta_dot = obj.dyn.model_eta(eta, nu);
           z_dot = [eta_dot; nu_dot];
       end
@@ -321,7 +323,7 @@ classdef ShipControl < handle
         % Draw vectors showing heading
         arrow_length = 0.2;  
         psi = eta(3,1:end-1); 
-        psi_safe = eta_cbf(3, 1:end-1); 
+        psi_safe = eta_cbf(3, 1:end-1)
         
         hold on
         
