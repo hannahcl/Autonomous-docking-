@@ -1,5 +1,4 @@
-classdef ShipControl
-
+classdef ShipControl < handle
    properties
 
         Q_lqr
@@ -13,10 +12,10 @@ classdef ShipControl
         cbf_ds1_3 %cbf for avioding dock in stage 1
         cbf_o_1   %cbf for keeping the sys observable
         cbf_o_2   %cbf for keeping the sys observable
-        n_active_cbfs
-        n_ctrl_inputs
 
         cbfs
+        active_cbfs_stage0
+        active_cbfs_stage1
         dyn
 
         z0
@@ -24,6 +23,14 @@ classdef ShipControl
 
         eta_measurement_variance
         nu_measurement_variance
+
+        n_active_cbfs
+        n_ctrl_inputs
+        dock_width
+        dock_length
+
+        stage
+        tentative_switch_stage
 
  
    end
@@ -64,7 +71,8 @@ classdef ShipControl
 %             cbf_valid = obj.cbfs{i}.check_initial_conditions(obj.z0, obj.tau0);
 %             assert(cbf_valid, 'CBF not valid. Must change initial conditions or values of K_alpha.')
 %         end
-
+        obj.active_cbfs_stage0 = {obj.cbf_ds0_1;obj.cbf_o_1; obj.cbf_o_2};
+        obj.active_cbfs_stage1 = {obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
 
          obj.n_active_cbfs = 4;
          obj.n_ctrl_inputs = 3; 
@@ -77,6 +85,12 @@ classdef ShipControl
 
          obj.eta_measurement_variance = zeros(3,1); 
          obj.nu_measurement_variance = zeros(3,1);
+
+        obj.dock_width = 1; 
+        obj.dock_length = 3; 
+
+        obj.stage = 0; 
+        obj.tentative_switch_stage = false; 
 
       end
 
@@ -144,6 +158,20 @@ classdef ShipControl
           end 
       end
 
+      function s = update_stage(obj, eta)
+          if (abs(eta(1) + 3*sqrt(obj.eta_measurement_variance(1,1))) > obj.dock_width)
+            s = 0;  %Converge towards dock
+          else
+            s = 1;  %Drive into berth
+          end
+
+          if ~(s == obj.stage)
+              obj.tentative_switch_stage = true;
+              disp('tentative switch')
+          end
+          obj.stage = s; 
+      end
+
       %% Closed loop models
 
       function z_dot = closed_loop_model_z_nomiell(obj, z)
@@ -152,13 +180,9 @@ classdef ShipControl
           eta_m = eta + randn(1)*obj.eta_measurement_variance; 
           nu_m = nu + randn(1)*obj.nu_measurement_variance;  
 
-          if (abs(eta_m(1)) > 1)
-            stage = 0;  %Converge towards dock
-          else
-            stage = 1;  %Drive into berth
-          end
+          obj.update_stage(eta_m); 
 
-          eta_ref = obj.give_eta_ref(stage); 
+          eta_ref = obj.give_eta_ref(obj.stage); 
           nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
           tau = obj.ctrl_nu_nominell(nu_m, nu_ref); 
 
@@ -174,29 +198,64 @@ classdef ShipControl
           eta_m = eta + randn(1)*obj.eta_measurement_variance; 
           nu_m = nu + randn(1)*obj.nu_measurement_variance; 
 
-          if (abs(eta_m(1)) > 1)
-            stage = 0;  %Converge towards dock
-          else
-            stage = 1;  %Drive into berth
-          end
+          obj.update_stage(eta_m);
 
-          eta_ref = obj.give_eta_ref(stage); 
+          eta_ref = obj.give_eta_ref(obj.stage); 
           nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
           tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
-          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, stage); 
+          tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, obj.stage); 
+
+          if obj.tentative_switch_stage
+              obj.tentative_switch_stage = false; 
+              if (obj.stage == 1)
+                
+                for i = 1:numel(obj.active_cbfs_stage1)
+                    cbf_valid = obj.active_cbfs_stage1{i}.check_initial_conditions(z, tau_safe);
+                    if ~cbf_valid
+                        obj.stage = 0; 
+                        disp('Could not switch stage.')
+                        obj.stage
+                        z
+                        eta_ref = obj.give_eta_ref(obj.stage); 
+                        nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
+                        tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
+                        tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, obj.stage);
+                    end
+                    break
+                end
+
+              else
+
+               for i = 1:numel(obj.active_cbfs_stage0)
+                    cbf_valid = obj.active_cbfs_stage0{i}.check_initial_conditions(z, tau_safe);
+                    if ~cbf_valid
+                        obj.stage = 1; 
+                        disp('Could not switch stage.')
+                        obj.stage
+                        z
+                        eta_ref = obj.give_eta_ref(obj.stage); 
+                        nu_ref = obj.ctrl_eta(eta_m, eta_ref); 
+                        tau_nominell = obj.ctrl_nu_nominell(nu_m, nu_ref); 
+                        tau_safe = obj.ctrl_nu_safe(tau_nominell, nu_m, eta_m, obj.stage);
+                    end
+                    break
+                end
+
+              end   
+          end
 
           nu_dot = obj.dyn.model_nu(nu, tau_safe); 
           %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe);
           eta_dot = obj.dyn.model_eta(eta, nu);
-          z_dot = [eta_dot; nu_dot]; 
+          z_dot = [eta_dot; nu_dot];
       end
 
    end
 
   methods
-      function measurement = add_noise(obj, z)
-        measurement = z + randn(1)*[obj.eta_measurement_variance; obj.nu_measurement_variance];
-      end
+%       function measurement = add_noise(obj, z)
+%         measurement = z + randn(1)*[obj.eta_measurement_variance; obj.nu_measurement_variance];
+%       end
 
       function simRK4(obj, T, ts)
 
@@ -210,8 +269,8 @@ classdef ShipControl
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
         z(:, 1) = obj.z0; 
-
-        for k = 1:sim_steps 
+        obj.stage = 0;
+        for k = 1:sim_steps  
             store = zeros(6,stages + 1); 
             sum_b = zeros(6,1); 
             for s = 1:stages
@@ -229,7 +288,9 @@ classdef ShipControl
         for i = 1:numel(obj.cbfs)
             h{i} = zeros(1, sim_steps);
         end
+        stage_arr = zeros(1, sim_steps);
 
+        obj.stage = 0;
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -244,6 +305,7 @@ classdef ShipControl
             for i = 1:numel(obj.cbfs)
                 h{i}(k) = obj.cbfs{i}.h(z_cbf(:, k));
             end
+            stage_arr(k) = obj.update_stage(z_cbf(1:3, k)); 
 
         end
 
@@ -263,10 +325,12 @@ classdef ShipControl
             plot(t_arr, h{i});
             hold on
         end
-        hold off
+        plot(t_arr, stage_arr); 
+        hold off 
+
         xlabel('Time')
         ylabel('')
-        legend('cbf ds0 1', 'cbf ds1 1','cbf ds1 2', 'cbf ds1 3','cbf o 1', 'cbf o 2')
+        legend('cbf ds0 1', 'cbf ds1 1','cbf ds1 2', 'cbf ds1 3','cbf o 1', 'cbf o 2', 'stage')
 
         % --- Plotting trajectory of eta ---
         subplot(1,2,2);
