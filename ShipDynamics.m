@@ -130,16 +130,9 @@ classdef ShipDynamics
         z = sym('z', [6 1]);
         nu = z(4:6); 
 
-        nu_relative = nu - obj.nu_current; 
-        C_RB = obj.compute_C_RB(nu);
-        N = obj.compute_N(nu_relative);
-
-        f = [
-            obj.compute_R(z(3))*z(4:6); 
-            -obj.M\(C_RB*nu + N*nu_relative)]; 
+        f = 0; 
         
-        g = zeros(6,3); 
-        g(4:6, 1:3) = obj.B_nu; 
+        g = obj.compute_R(z(1)); 
 
         fhs = {f; g};
 

@@ -6,10 +6,7 @@ classdef ShipControl < handle
         K
         Kr
 
-        cbf_ds0_1 %cbf for avioding dock in stage 0
-        cbf_ds1_1 %cbf for avioding dock in stage 1
-        cbf_ds1_2 %cbf for avioding dock in stage 1
-        cbf_ds1_3 %cbf for avioding dock in stage 1
+        cbf_dock %cbf for avioding dock in stage 0
         cbf_o_1   %cbf for keeping the sys observable
         cbf_o_2   %cbf for keeping the sys observable
         cbfs
@@ -51,17 +48,6 @@ classdef ShipControl < handle
          % z' = f(z) + g(z)*tau, where z = [eta; nu]
          z = sym('z', [6 1]);
 
-         h(z) = [0 -1 0 0 0 0]*z -3; 
-         obj.cbf_ds0_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
-
-         h(z) = [0 -1 0 0 0 0]*z;
-         obj.cbf_ds1_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
-
-         h(z) = [1 0 0 0 0 0]*z + 1;
-         obj.cbf_ds1_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
-
-         h(z) = [-1 0 0 0 0 0]*z +1;
-         obj.cbf_ds1_3 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
          h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
