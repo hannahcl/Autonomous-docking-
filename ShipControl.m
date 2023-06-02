@@ -91,7 +91,7 @@ classdef ShipControl < handle
         obj.stage = 0; 
         obj.tentative_switch_stage = false; 
 
-        obj.waypoint_stage0 = [0; -(obj.dock_length+0.2); 0];
+        obj.waypoint_stage0 = [0; 0; 0]; %[0; -(obj.dock_length+0.2); 0];
         obj.waypoint_stage1 = [0; 0; 0]; 
 
       end
@@ -323,7 +323,7 @@ classdef ShipControl < handle
         % Draw vectors showing heading
         arrow_length = 0.2;  
         psi = eta(3,1:end-1); 
-        psi_safe = eta_cbf(3, 1:end-1)
+        psi_safe = eta_cbf(3, 1:end-1) ;
         
         hold on
         
