@@ -61,10 +61,16 @@ classdef ShipControl < handle
          obj.cbf_dock = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
 
-         h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
+%          h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
+%          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
+% 
+%          h(z) = z(1) +z(2)*atan(-z(3) - pi/3);
+%          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
+
+          h(z) = -z(1) +20*z(2)*atan(0.1*(z(3) - pi/3));
          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
 
-         h(z) = z(1) +z(2)*atan(-z(3) - pi/3);
+         h(z) = z(1) +20*z(2)*atan(0.1*(-z(3) - pi/3));
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
         obj.cbfs = {obj.cbf_dock; obj.cbf_o_1; obj.cbf_o_2}; 
