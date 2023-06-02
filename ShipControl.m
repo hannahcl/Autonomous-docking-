@@ -6,15 +6,12 @@ classdef ShipControl < handle
         K
         Kr
 
-        cbf_dock %cbf for avioding dock in stage 0
+        cbf_dock %cbf for avioding dock 
         cbf_o_1   %cbf for keeping the sys observable
         cbf_o_2   %cbf for keeping the sys observable
         cbfs
-        active_cbfs_stage0
-        active_cbfs_stage1
 
         waypoint_stage0
-        waypoint_stage1
 
         dyn
 
@@ -28,10 +25,6 @@ classdef ShipControl < handle
         n_ctrl_inputs
         dock_width
         dock_length
-
-        stage
-        tentative_switch_stage
-
  
    end
    methods(Access = public)
@@ -46,7 +39,26 @@ classdef ShipControl < handle
 
          %Controll barrier function handels
          % z' = f(z) + g(z)*tau, where z = [eta; nu]
-         z = sym('z', [6 1]);
+         z = sym('z', [3 1]);
+         x = sym('x', [1 1]); 
+
+         depth = 3;
+         width = 1; 
+         sharpness = 10e-3; 
+         tol = width - 0.1; 
+
+         %k1 = dedpth of the doc
+        %k2 = width of teh doc
+        %k3 = tollerance for difference between sigmoid func and acctual doc
+        %k4 = sparpnes of sigmoid
+        
+        %k5 = length of boat
+        %k6 = width of boat
+
+         s(x) = 1/(1 + exp(-x)); 
+         d(x) = -depth + depth*(s((x+tol)/sharpness) - s((x-tol)/sharpness));
+         h(z) = d(z(1)) - z(2); 
+         obj.cbf_dock = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
 
          h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
@@ -55,11 +67,9 @@ classdef ShipControl < handle
          h(z) = z(1) +z(2)*atan(-z(3) - pi/3);
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
-        obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
-        obj.active_cbfs_stage0 = {obj.cbf_ds0_1;obj.cbf_o_1; obj.cbf_o_2};
-        obj.active_cbfs_stage1 = {obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
-
-         obj.n_active_cbfs = 4;
+        obj.cbfs = {obj.cbf_dock; obj.cbf_o_1; obj.cbf_o_2}; 
+ 
+         obj.n_active_cbfs = 2;
          obj.n_ctrl_inputs = 3; 
  
          %Nominal controler with feedforward
@@ -72,13 +82,9 @@ classdef ShipControl < handle
          obj.nu_measurement_variance = zeros(3,1);
 
         obj.dock_width = 1; 
-        obj.dock_length = 3; 
+        obj.dock_length = 3;
 
-        obj.stage = 0; 
-        obj.tentative_switch_stage = false; 
-
-        obj.waypoint_stage0 = [0; -(obj.dock_length+0.2); 0];
-        obj.waypoint_stage1 = [0; 0; 0]; 
+        obj.waypoint_stage0 = [0; 0; 0]; 
 
       end
 
@@ -92,85 +98,47 @@ classdef ShipControl < handle
         tau = obj.Kr*nu_ref-obj.K*nu; 
       end
 
-      function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
+      function nu_ref_safe = ctrl_nu_safe(obj, nu_ref_nominell, eta)
         %Create matricies for quadprog(H,f,lin_con_A, lin_con_b).
         H = 2*eye(3); 
-        f = -tau_nominell; 
+        f = -nu_ref_nominell; 
 
         lin_con_A = zeros(obj.n_active_cbfs, obj.n_ctrl_inputs); 
         lin_con_b = zeros(obj.n_active_cbfs, 1); 
 
-        z = [eta; nu]; 
+        z = eta; 
 
 
-        if (stage == 0)
-            lin_con_s01 = obj.cbf_ds0_1.compute_linear_constraints(z); 
-            lin_con_A(1,:) = lin_con_s01(1:3); 
-            lin_con_b(1) = lin_con_s01(4); 
-        else
-            lin_con_s11 = obj.cbf_ds1_1.compute_linear_constraints(z); 
-            lin_con_A(1,:) = lin_con_s11(1:3); 
-            lin_con_b(1) = lin_con_s11(4);
-
-            lin_con_s12 = obj.cbf_ds1_2.compute_linear_constraints(z); 
-            lin_con_A(2,:) = lin_con_s12(1:3); 
-            lin_con_b(2) = lin_con_s12(4);
-
-            lin_con_s13 = obj.cbf_ds1_3.compute_linear_constraints(z); 
-            lin_con_A(3,:) = lin_con_s13(1:3); 
-            lin_con_b(3) = lin_con_s13(4);
-        end
+        lin_con_s01 = obj.cbf_dock.compute_linear_constraints(z); 
+        lin_con_A(1,:) = lin_con_s01(1:3); 
+        lin_con_b(1) = lin_con_s01(4); 
 
         %Barrier for keeping the system observable
         if (obj.cbf_o_1.h(z) < obj.cbf_o_2.h(z))
             lin_con_o1 = obj.cbf_o_1.compute_linear_constraints(z); 
-            lin_con_A(4,:) = lin_con_o1(1:3); 
-            lin_con_b(4) = lin_con_o1(4);
+            lin_con_A(2,:) = lin_con_o1(1:3); 
+            lin_con_b(2) = lin_con_o1(4);
 
         else
             lin_con_o2 = obj.cbf_o_2.compute_linear_constraints(z); 
-            lin_con_A(4,:) = lin_con_o2(1:3); 
-            lin_con_b(4) = lin_con_o2(4);
+            lin_con_A(2,:) = lin_con_o2(1:3); 
+            lin_con_b(2) = lin_con_o2(4);
         end
 
         options = optimoptions('quadprog', 'Display', 'off');
-        tau_safe = quadprog(H,f,lin_con_A, lin_con_b, [], [], [], [], tau_nominell, options); 
-
+        nu_ref_safe = quadprog(H,f,lin_con_A, lin_con_b, [], [], [], [], nu_ref_nominell,options); 
       end
 
-      function eta_ref = give_eta_ref(obj, stage)
-          if (stage == 0)
-            eta_ref = obj.waypoint_stage0; 
-          else
-            eta_ref = obj.waypoint_stage1; 
-          end 
-      end
 
-      function tau_safe = ctrl_z_safe(obj, z)
-          eta_ref = obj.give_eta_ref(obj.stage); 
-          nu_ref = obj.ctrl_eta(z(1:3), eta_ref); 
-          tau_nominell = obj.ctrl_nu_nominell(z(4:6), nu_ref); 
-          tau_safe = obj.ctrl_nu_safe(tau_nominell, z(4:6), z(1:3), obj.stage); 
+      function tau_safe = ctrl_z_safe(obj, z) 
+          nu_ref = obj.ctrl_eta(z(1:3), obj.waypoint_stage0); 
+          nu_ref_safe = obj.ctrl_nu_safe(nu_ref, z(1:3)); 
+          tau_safe = obj.ctrl_nu_nominell(z(4:6), nu_ref_safe); 
       end
 
       function tau_nominell = ctrl_z_nominell(obj, z)
-          eta_ref = obj.give_eta_ref(obj.stage); 
-          nu_ref = obj.ctrl_eta(z(1:3), eta_ref); 
+          nu_ref = obj.ctrl_eta(z(1:3), obj.waypoint_stage0); 
           tau_nominell = obj.ctrl_nu_nominell(z(4:6), nu_ref); 
-      end
-
-      function s = update_stage(obj, eta)
-          if (abs(eta(1) + obj.eta_measurement_variance(1,1)) > obj.dock_width)
-            s = 0;  %Converge towards dock
-          else
-            s = 1;  %Drive into berth
-          end
-
-          if ~(s == obj.stage)
-              obj.tentative_switch_stage = true;
-              disp('tentative switch')
-          end
-          obj.stage = s; 
       end
 
       %% Closed loop models
@@ -179,8 +147,6 @@ classdef ShipControl < handle
           eta = z(1:3); 
           nu = z(4:6); 
           z_measured = [eta + randn(1)*obj.eta_measurement_variance;  nu + randn(1)*obj.nu_measurement_variance]; 
-
-          obj.update_stage(z_measured(1:3)); 
 
           tau = obj.ctrl_z_nominell(z_measured); 
 
@@ -194,24 +160,7 @@ classdef ShipControl < handle
           eta = z(1:3); 
           nu = z(4:6); 
           z_measured = [eta + randn(1)*obj.eta_measurement_variance;  nu + randn(1)*obj.nu_measurement_variance]; 
-
-          obj.update_stage(z_measured(1:3));
           tau_safe = obj.ctrl_z_safe(z_measured); 
-
-          if obj.tentative_switch_stage
-              obj.tentative_switch_stage = false; 
-              if (obj.stage == 1)
-                for i = 1:numel(obj.active_cbfs_stage1)
-                    cbf_valid = obj.active_cbfs_stage1{i}.check_initial_conditions(z, tau_safe);
-                    if ~cbf_valid
-                        obj.stage = 0; 
-                        disp('Could not switch stage.')
-                        tau_safe = obj.ctrl_z_safe(z_measured);
-                    end
-                    break
-                end
-              end   
-          end
 
           nu_dot = obj.dyn.model_nu(nu, tau_safe);
           %nu_dot = obj.dyn.linear_model_nu(nu, tau_safe); 
@@ -236,7 +185,6 @@ classdef ShipControl < handle
         %% Run simulation without cbf
         z = zeros(6, sim_steps);  
         z(:, 1) = obj.z0; 
-        obj.stage = 0;
         for k = 1:sim_steps  
             store = zeros(6,stages + 1); 
             sum_b = zeros(6,1); 
@@ -255,9 +203,6 @@ classdef ShipControl < handle
         for i = 1:numel(obj.cbfs)
             h{i} = zeros(1, sim_steps);
         end
-        stage_arr = zeros(1, sim_steps);
-
-        obj.stage = 0;
 
         for k = 1:sim_steps 
             store = zeros(6,stages + 1); 
@@ -272,8 +217,6 @@ classdef ShipControl < handle
             for i = 1:numel(obj.cbfs)
                 h{i}(k) = obj.cbfs{i}.h(z_cbf(:, k));
             end
-            stage_arr(k) = obj.update_stage(z_cbf(1:3, k)); 
-
         end
 
         %% Plot
@@ -292,12 +235,11 @@ classdef ShipControl < handle
             plot(t_arr, h{i});
             hold on
         end
-        plot(t_arr, stage_arr); 
         hold off 
 
         xlabel('Time')
         ylabel('')
-        legend('cbf ds0 1', 'cbf ds1 1','cbf ds1 2', 'cbf ds1 3','cbf o 1', 'cbf o 2', 'stage')
+        legend('cbf dock','cbf o 1', 'cbf o 2')
 
         % --- Plotting trajectory of eta ---
         subplot(1,2,2);
@@ -309,7 +251,7 @@ classdef ShipControl < handle
         % Draw vectors showing heading
         arrow_length = 0.2;  
         psi = eta(3,1:end-1); 
-        psi_safe = eta_cbf(3, 1:end-1)
+        psi_safe = eta_cbf(3, 1:end-1); 
         
         hold on
         

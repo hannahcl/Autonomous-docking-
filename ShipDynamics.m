@@ -128,11 +128,9 @@ classdef ShipDynamics
      function fhs = compute_f_g_symbolic(obj)
         % z' = f(z) + g(z)*tau, where z = [eta; nu]
         z = sym('z', [6 1]);
-        nu = z(4:6); 
-
-        f = 0; 
+        f = zeros(size(z(1:3))); 
         
-        g = obj.compute_R(z(1)); 
+        g = obj.compute_R(z(3)); 
 
         fhs = {f; g};
 
