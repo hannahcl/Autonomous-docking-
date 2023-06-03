@@ -1,16 +1,49 @@
 classdef ShipDynamics
 
    properties
-        m = 75; %[kg]
-        Iz = 22; %[kg*m^2] % second moment of interitia = 0.021; %[m^4]
+
+       %nonlinear model, constant matricies
+        
+        M_RB
+        MA
+        M 
+        D
+
+        %linear model
+
+        C_RB_lin
+        C_A_lin
+        D_lin
+        N_lin
+        A_nu
+        B_nu
+        C_nu
+
+        %symbolic model
+
+        f_symbolic
+        g_symbolic
+
+        %disturbance
+
+        tau_wind
+        tau_wave
+        nu_current
+
+        eta_model_distrubance
+        nu_model_distrubance
+
+        %model coefficients
+        m = 75;
+        Iz = 22; 
         U = 2; 
         x_g = 0;
 
-        X_u_dot = -5; %[kg/m^2]
-        Y_u_dot = -20; %[kg/m^2]
-        X_v_dot = -10; %[kg/m^2]
-        Y_v_dot = -30; %[kg/m^2]
-        Y_r_dot = -10; %[kg·m^2/rad]
+        X_u_dot = -5; 
+        Y_u_dot = -20; 
+        X_v_dot = -10; 
+        Y_v_dot = -30;
+        Y_r_dot = -10; 
 
         X_u = -1;
         Y_v = -30; 
@@ -37,37 +70,10 @@ classdef ShipDynamics
         B_11v = 1; 
         B_22v = 1; 
         B_66v = 1; 
-        
-        M_RB
-        MA
-        M 
-        D
-
-
-        C_RB_lin
-        C_A_lin
-        D_lin
-        N_lin
-        A_nu
-        B_nu
-        C_nu
-
-        f_symbolic
-        g_symbolic
-
-        tau_wind
-        tau_wave
-        nu_current
-
-        eta_model_distrubance
-        nu_model_distrubance
-
 
    end
    methods(Access = public)
        function obj = ShipDynamics()
-
-       %nonlinar model
 
          obj.M_RB = [
              obj.m 0 0; 
@@ -85,8 +91,6 @@ classdef ShipDynamics
              obj.B_11v 0 0; 
              0 obj.B_22v 0; 
              0 0 obj.B_66v]; 
-
-         % disturbance 
       
          obj.tau_wave = zeros(3,1); 
          obj.tau_wind = zeros(3,1); 
@@ -94,8 +98,6 @@ classdef ShipDynamics
 
          obj.eta_model_distrubance = zeros(3,1); 
          obj.nu_model_distrubance = zeros(3,1); 
-
-         % linear model
 
          obj.C_RB_lin = [
              0 0 0;
@@ -117,7 +119,6 @@ classdef ShipDynamics
          obj.A_nu = -obj.M\obj.N_lin; 
          obj.B_nu = inv(obj.M); 
          obj.C_nu = eye(3);
-
 
          fhs = obj.compute_f_g_symbolic();
          obj.f_symbolic = fhs{1}; 

@@ -62,12 +62,6 @@ classdef ShipControl < handle
 
          h(z) = [-1 0 0 0 0 0]*z +1;
          obj.cbf_ds1_3 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
-% 
-%          h(z) = -z(1) +z(2)*atan(z(3) - pi/3);
-%          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
-% 
-%          h(z) = z(1) +z(2)*atan(-z(3) - pi/3);
-%          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
          h(z) = -z(1) +20*z(2)*atan(0.1*(z(3) - pi/3));
          obj.cbf_o_1 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z); 
@@ -75,9 +69,9 @@ classdef ShipControl < handle
          h(z) = z(1) +20*z(2)*atan(0.1*(-z(3) - pi/3));
          obj.cbf_o_2 = cbf(obj.dyn.f_symbolic, obj.dyn.g_symbolic, h, z);
 
-        obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
-        obj.active_cbfs_stage0 = {obj.cbf_ds0_1;obj.cbf_o_1; obj.cbf_o_2};
-        obj.active_cbfs_stage1 = {obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
+         obj.cbfs = {obj.cbf_ds0_1; obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
+         obj.active_cbfs_stage0 = {obj.cbf_ds0_1;obj.cbf_o_1; obj.cbf_o_2};
+         obj.active_cbfs_stage1 = {obj.cbf_ds1_1; obj.cbf_ds1_2; obj.cbf_ds1_3; obj.cbf_o_1; obj.cbf_o_2}; 
 
          obj.n_active_cbfs = 4;
          obj.n_ctrl_inputs = 3; 
@@ -91,14 +85,14 @@ classdef ShipControl < handle
          obj.eta_measurement_variance = zeros(3,1); 
          obj.nu_measurement_variance = zeros(3,1);
 
-        obj.dock_width = 1; 
-        obj.dock_length = 3; 
+         obj.dock_width = 1; 
+         obj.dock_length = 3; 
 
-        obj.stage = 0; 
-        obj.tentative_switch_stage = false; 
+         obj.stage = 0; 
+         obj.tentative_switch_stage = false; 
 
-        obj.waypoint_stage0 = [0; 0; 0]; %[0; -(obj.dock_length+0.2); 0];
-        obj.waypoint_stage1 = [0; 0; 0]; 
+         obj.waypoint_stage0 = [0; -(obj.dock_length+0.2); 0];
+         obj.waypoint_stage1 = [0; 0; 0]; 
 
       end
 
@@ -113,7 +107,7 @@ classdef ShipControl < handle
       end
 
       function tau_safe = ctrl_nu_safe(obj, tau_nominell, nu, eta, stage)
-        %Create matricies for quadprog(H,f,lin_con_A, lin_con_b).
+        %Create matricies for tau_safe = quadprog(H,f,lin_con_A, lin_con_b).
         H = 2*eye(3); 
         f = -tau_nominell; 
 
@@ -122,7 +116,7 @@ classdef ShipControl < handle
 
         z = [eta; nu]; 
 
-
+        %Barrier for avioding collision
         if (stage == 0)
             lin_con_s01 = obj.cbf_ds0_1.compute_linear_constraints(z); 
             lin_con_A(1,:) = lin_con_s01(1:3); 
